@@ -361,14 +361,52 @@ async def index():
 app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 
+def stop_all_casts() -> None:
+    """Останавливает все активные касты. Вызывается из трея."""
+    if state.cast_manager is None:
+        return
+    for uuid in list(state.sessions_by_device.keys()):
+        try:
+            state.cast_manager.stop(uuid)
+        except Exception:
+            logger.exception("stop_all_casts: ошибка stop %s", uuid)
+        sess = state.sessions_by_device.pop(uuid, None)
+        if sess:
+            Streamer.terminate_session(sess)
+            state.sessions_by_token.pop(sess.token, None)
+
+
 if __name__ == "__main__":
+    import threading
+    import time
+
     import uvicorn
 
+    from tray import start_tray
+
     cfg = load_config()
-    uvicorn.run(
+    config = uvicorn.Config(
         "main:app",
         host="0.0.0.0",
         port=cfg.port,
         log_level="info",
         timeout_graceful_shutdown=2,
     )
+    server = uvicorn.Server(config)
+
+    server_thread = threading.Thread(target=server.run, daemon=True)
+    server_thread.start()
+
+    # ждём, пока lifespan отработает и app будет готов
+    while not server.started:
+        time.sleep(0.05)
+
+    def _on_quit():
+        logger.info("Quit из трея")
+        server.should_exit = True
+
+    try:
+        start_tray(port=cfg.port, on_quit=_on_quit, on_stop_all=stop_all_casts)
+    finally:
+        server.should_exit = True
+        server_thread.join(timeout=5)
