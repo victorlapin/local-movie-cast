@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import power
 from caster import CastManager
 from config import PROJECT_ROOT, load_config
 from streamer import OUTPUT_MIME, StreamSession, Streamer
@@ -62,6 +63,7 @@ async def lifespan(app: FastAPI):
         for _, sess in state.sessions_by_device.items():
             Streamer.terminate_session(sess)
         state.cast_manager.shutdown()
+        power.release_all()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -225,6 +227,7 @@ async def api_cast(req: CastRequest) -> dict:
     if old:
         Streamer.terminate_session(old)
         state.sessions_by_token.pop(old.token, None)
+        power.release(old.token)
 
     token = uuid.uuid4().hex
     try:
@@ -250,6 +253,7 @@ async def api_cast(req: CastRequest) -> dict:
         state.sessions_by_token.pop(token, None)
         raise HTTPException(status_code=500, detail=f"Cast failed: {e}")
 
+    power.acquire(token)
     return {"token": token, "url": url, "mode": session.mode, "duration": session.duration}
 
 
@@ -271,6 +275,7 @@ async def api_stop(req: StopRequest) -> dict:
     if sess:
         Streamer.terminate_session(sess)
         state.sessions_by_token.pop(sess.token, None)
+        power.release(sess.token)
     return {"ok": True}
 
 
@@ -374,6 +379,7 @@ def stop_all_casts() -> None:
         if sess:
             Streamer.terminate_session(sess)
             state.sessions_by_token.pop(sess.token, None)
+    power.release_all()
 
 
 if __name__ == "__main__":
