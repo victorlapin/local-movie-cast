@@ -1,6 +1,9 @@
 # Portable ffmpeg
 bin/
 
+# Сгенерированный кэш (миниатюры и т.п.)
+.cache/
+
 # Python
 .venv/
 __pycache__/

@@ -21,7 +21,7 @@ from config import PROJECT_ROOT, Config
 
 logger = logging.getLogger(__name__)
 
-THUMB_DIR = PROJECT_ROOT / "bin" / "thumbs"
+THUMB_DIR = PROJECT_ROOT / ".cache" / "thumbs"
 THUMB_WIDTH = 400
 
 
