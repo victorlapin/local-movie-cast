@@ -1,0 +1,20 @@
+# Portable ffmpeg
+bin/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Local config (template — config.example.yaml)
+config.yaml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

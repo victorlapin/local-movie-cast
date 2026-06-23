@@ -1,0 +1,28 @@
+# Скопируй этот файл в config.yaml и подправь под себя.
+
+# Корень библиотеки фильмов. Обход рекурсивный, ленивый.
+media_root: D:\Movies
+
+# Пути к ffmpeg/ffprobe. Если используешь bin/ рядом с проектом — пути ниже подойдут.
+ffmpeg_path: bin\ffmpeg.exe
+ffprobe_path: bin\ffprobe.exe
+
+# IP машины в LAN, по которому Chromecast будет тянуть видео.
+# Узнать: ipconfig → "IPv4 Address" нужной сетёвки.
+host_ip: 192.168.1.10
+
+# Порт FastAPI.
+port: 8000
+
+# Энкодер для HEVC -> H.264. Варианты: h264_nvenc (NVIDIA), h264_qsv (Intel),
+# h264_amf (AMD), libx264 (только CPU, fallback).
+hevc_encoder: h264_nvenc
+
+# Расширения, которые считаем видеофайлами при обходе библиотеки.
+video_extensions:
+  - .mkv
+  - .mp4
+  - .avi
+  - .m4v
+  - .mov
+  - .webm
