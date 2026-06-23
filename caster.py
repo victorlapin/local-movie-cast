@@ -90,7 +90,7 @@ class CastManager:
     def shutdown(self) -> None:
         for cc in list(self.devices.values()):
             try:
-                cc.disconnect(blocking=False)
+                cc.disconnect()
             except Exception:
                 logger.exception("Ошибка disconnect %s", cc.cast_info.friendly_name)
         if self._browser is not None:
@@ -168,7 +168,7 @@ class CastManager:
         if cc is not None:
             logger.info("Устройство исчезло: %s", uuid_str)
             try:
-                cc.disconnect(blocking=False)
+                cc.disconnect()
             except Exception:
                 pass
 
