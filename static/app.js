@@ -5,6 +5,7 @@ const state = {
   activeDeviceUuid: null,
   currentPath: "",
   selectedFile: null,        // {path, name}
+  selectedTileEl: null,
   selectedAudio: 0,
   tracks: [],
 };
@@ -12,14 +13,14 @@ const state = {
 const els = {
   devices: document.getElementById("devices"),
   crumbs: document.getElementById("crumbs"),
-  listing: document.getElementById("listing"),
+  folders: document.getElementById("folders"),
+  files: document.getElementById("files"),
+  empty: document.getElementById("empty"),
   fileTitle: document.getElementById("file-title"),
   fileMeta: document.getElementById("file-meta"),
   tracksTitle: document.querySelector(".tracks-title"),
   tracks: document.getElementById("tracks"),
   castBtn: document.getElementById("cast-btn"),
-  stopBtn: document.getElementById("stop-btn"),
-  statusBar: document.getElementById("status-bar"),
 };
 
 // --- helpers ----------------------------------------------------------------
@@ -56,59 +57,99 @@ async function api(method, url, body) {
   return r.json();
 }
 
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function stripExt(name) {
+  const i = name.lastIndexOf(".");
+  return i > 0 ? name.slice(0, i) : name;
+}
+
 // --- devices ----------------------------------------------------------------
+
+const DEVICE_ICONS = { cast: "📺", audio: "🔊", group: "🔊" };
+const TYPE_ORDER = { cast: 0, group: 1, audio: 2 };
+
+function sortedDevices() {
+  return [...state.devices].sort((a, b) => {
+    const ta = TYPE_ORDER[a.cast_type] ?? 9;
+    const tb = TYPE_ORDER[b.cast_type] ?? 9;
+    if (ta !== tb) return ta - tb;
+    return (a.name || "").localeCompare(b.name || "");
+  });
+}
+
+function deviceStatusHtml(d) {
+  if (d.our_file) {
+    const mode = `<span class="mode ${d.our_mode}">${d.our_mode}</span>`;
+    const pos = (d.position != null && d.duration)
+      ? ` · ${fmtTime(d.position)} / ${fmtTime(d.duration)}`
+      : "";
+    const fname = d.our_file.split("/").pop();
+    return `▶ ${escapeHtml(fname)} ${mode}${pos}`;
+  }
+  if (d.app && d.app !== "Backdrop" && d.app !== "Default Media Receiver") {
+    return `Занят: ${escapeHtml(d.app)}`;
+  }
+  return "Idle";
+}
 
 function renderDevices() {
   els.devices.innerHTML = "";
-  for (const d of state.devices) {
+  for (const d of sortedDevices()) {
     const tab = document.createElement("div");
-    tab.className = "device-tab";
+    tab.className = `device-tab type-${d.cast_type || "cast"}`;
     if (d.uuid === state.activeDeviceUuid) tab.classList.add("active");
 
     const stateLower = (d.state || "").toLowerCase();
     if (stateLower === "playing") tab.classList.add("playing");
     else if (stateLower === "paused") tab.classList.add("paused");
 
-    // активное приложение — наш каст или чужое?
     const ourApp = d.our_file != null;
     if (!ourApp && d.app && d.app !== "Backdrop" && d.app !== "Default Media Receiver") {
       tab.classList.add("other-app");
     }
 
-    tab.innerHTML = `<span class="dot"></span><span>${escapeHtml(d.name)}</span>`;
-    tab.onclick = () => { state.activeDeviceUuid = d.uuid; renderDevices(); renderStatus(); };
+    const icon = DEVICE_ICONS[d.cast_type] || "📺";
+
+    const head = `<div class="dev-head">
+      <span class="dot"></span>
+      <span class="icon">${icon}</span>
+      <span class="name">${escapeHtml(d.name)}</span>
+    </div>`;
+    const model = `<div class="dev-model">${escapeHtml(d.model || d.cast_type || "")}</div>`;
+    const status = `<div class="dev-status">${deviceStatusHtml(d)}</div>`;
+
+    let stopBtn = "";
+    if (d.our_file) {
+      stopBtn = `<button class="dev-stop" data-uuid="${d.uuid}" title="Остановить">×</button>`;
+    }
+
+    tab.innerHTML = head + model + status + stopBtn;
+
+    tab.onclick = (ev) => {
+      if (ev.target.classList.contains("dev-stop")) return;
+      state.activeDeviceUuid = d.uuid;
+      renderDevices();
+    };
+    const stop = tab.querySelector(".dev-stop");
+    if (stop) stop.onclick = (ev) => { ev.stopPropagation(); stopDevice(d.uuid); };
+
     els.devices.appendChild(tab);
   }
   if (!state.activeDeviceUuid && state.devices.length > 0) {
-    state.activeDeviceUuid = state.devices[0].uuid;
+    state.activeDeviceUuid = sortedDevices()[0].uuid;
     renderDevices();
   }
   refreshCastButton();
 }
 
-function renderStatus() {
-  const d = state.devices.find(x => x.uuid === state.activeDeviceUuid);
-  if (!d) { els.statusBar.textContent = "Нет устройства"; els.stopBtn.hidden = true; return; }
-
-  let html = `<strong>${escapeHtml(d.name)}</strong>: `;
-  if (d.our_file) {
-    html += `Играю ${escapeHtml(d.our_file)} `;
-    html += `<span class="mode ${d.our_mode}">${d.our_mode}</span>`;
-    if (d.our_audio_lang || d.our_audio_codec) {
-      html += ` · ${escapeHtml(d.our_audio_lang || "")} ${escapeHtml(d.our_audio_codec || "")}`;
-    }
-    if (d.position != null && d.duration) {
-      html += ` · ${fmtTime(d.position)} / ${fmtTime(d.duration)}`;
-    }
-    els.stopBtn.hidden = false;
-  } else if (d.app && d.app !== "Backdrop" && d.app !== "Default Media Receiver") {
-    html += `Занят: ${escapeHtml(d.app)}`;
-    els.stopBtn.hidden = true;
-  } else {
-    html += "Idle";
-    els.stopBtn.hidden = true;
-  }
-  els.statusBar.innerHTML = html;
+async function stopDevice(uuid) {
+  try { await api("POST", "/api/stop", { device_uuid: uuid }); }
+  catch (e) { alert(e.message); }
 }
 
 // --- browser ----------------------------------------------------------------
@@ -119,48 +160,94 @@ async function loadDir(path) {
   renderListing(data);
 }
 
-function renderListing(data) {
-  // breadcrumbs
+function renderCrumbs(currentPath) {
   els.crumbs.innerHTML = "";
   const root = document.createElement("a");
   root.textContent = "media_root";
   root.onclick = () => loadDir("");
   els.crumbs.appendChild(root);
-  if (data.path) {
-    const parts = data.path.split("/");
-    let acc = "";
-    for (const p of parts) {
-      acc = acc ? `${acc}/${p}` : p;
-      els.crumbs.appendChild(document.createTextNode(" / "));
-      const a = document.createElement("a");
-      a.textContent = p;
-      const target = acc;
-      a.onclick = () => loadDir(target);
-      els.crumbs.appendChild(a);
-    }
-  }
-
-  els.listing.innerHTML = "";
-  for (const d of data.dirs) {
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="icon">📁</span><span>${escapeHtml(d.name)}</span>`;
-    li.onclick = () => loadDir(d.path);
-    els.listing.appendChild(li);
-  }
-  for (const f of data.files) {
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="icon">🎬</span><span>${escapeHtml(f.name)}</span><span class="size">${fmtSize(f.size)}</span>`;
-    li.onclick = () => selectFile(f, li);
-    els.listing.appendChild(li);
+  if (!currentPath) return;
+  const parts = currentPath.split("/");
+  let acc = "";
+  for (const p of parts) {
+    acc = acc ? `${acc}/${p}` : p;
+    els.crumbs.appendChild(document.createTextNode(" / "));
+    const a = document.createElement("a");
+    a.textContent = p;
+    const target = acc;
+    a.onclick = () => loadDir(target);
+    els.crumbs.appendChild(a);
   }
 }
 
-async function selectFile(f, liEl) {
-  state.selectedFile = f;
-  for (const li of els.listing.querySelectorAll("li.selected")) li.classList.remove("selected");
-  liEl.classList.add("selected");
+function renderListing(data) {
+  renderCrumbs(data.path);
 
-  els.fileTitle.textContent = f.name;
+  els.folders.innerHTML = "";
+  if (data.parent != null) {
+    const up = document.createElement("div");
+    up.className = "folder up";
+    up.innerHTML = `<span class="icon">↑</span><span>..</span>`;
+    up.onclick = () => loadDir(data.parent);
+    els.folders.appendChild(up);
+  }
+  for (const d of data.dirs) {
+    const div = document.createElement("div");
+    div.className = "folder";
+    div.title = d.name;
+    div.innerHTML = `<span class="icon">📁</span><span>${escapeHtml(d.name)}</span>`;
+    div.onclick = () => loadDir(d.path);
+    els.folders.appendChild(div);
+  }
+  els.folders.style.display = (data.dirs.length || data.parent != null) ? "" : "none";
+
+  els.files.innerHTML = "";
+  for (const f of data.files) {
+    els.files.appendChild(makeTile(f));
+  }
+
+  els.empty.hidden = !(data.dirs.length === 0 && data.files.length === 0 && data.parent == null);
+}
+
+function makeTile(f) {
+  const tile = document.createElement("div");
+  tile.className = "tile";
+  tile.title = f.name;
+
+  const thumb = document.createElement("div");
+  thumb.className = "thumb loading";
+
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.alt = "";
+  img.onload = () => thumb.classList.remove("loading");
+  img.onerror = () => { thumb.classList.remove("loading"); thumb.textContent = "🎬"; img.remove(); };
+  img.src = `/api/thumb?path=${encodeURIComponent(f.path)}`;
+  thumb.appendChild(img);
+
+  const caption = document.createElement("div");
+  caption.className = "caption";
+  const name = document.createElement("span");
+  name.textContent = stripExt(f.name);
+  const size = document.createElement("span");
+  size.className = "size";
+  size.textContent = fmtSize(f.size);
+  caption.appendChild(name);
+  caption.appendChild(size);
+
+  tile.appendChild(thumb);
+  tile.appendChild(caption);
+  tile.onclick = () => selectFile(f, tile);
+  return tile;
+}
+
+async function selectFile(f, tileEl) {
+  state.selectedFile = f;
+  if (state.selectedTileEl) state.selectedTileEl.classList.remove("selected");
+  tileEl.classList.add("selected");
+  state.selectedTileEl = tileEl;
+
+  els.fileTitle.textContent = stripExt(f.name);
   els.fileMeta.textContent = "Читаю дорожки…";
   els.tracks.innerHTML = "";
   els.tracksTitle.hidden = true;
@@ -217,12 +304,6 @@ els.castBtn.onclick = async () => {
   }
 };
 
-els.stopBtn.onclick = async () => {
-  if (!state.activeDeviceUuid) return;
-  try { await api("POST", "/api/stop", { device_uuid: state.activeDeviceUuid }); }
-  catch (e) { alert(e.message); }
-};
-
 // --- SSE --------------------------------------------------------------------
 
 function connectStatus() {
@@ -233,17 +314,14 @@ function connectStatus() {
     if (msg.type === "snapshot") {
       state.devices = msg.devices;
       renderDevices();
-      renderStatus();
     } else if (msg.type === "update") {
       const idx = state.devices.findIndex(d => d.uuid === msg.device.uuid);
       if (idx >= 0) {
-        // сохраняем поля our_* — они приходят отдельно через snapshot
         state.devices[idx] = { ...state.devices[idx], ...msg.device };
       } else {
         state.devices.push(msg.device);
       }
       renderDevices();
-      renderStatus();
     }
   };
   es.onerror = () => {
@@ -252,15 +330,9 @@ function connectStatus() {
   };
 }
 
-// --- utils ------------------------------------------------------------------
-
-function escapeHtml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[c]));
-}
-
 // --- boot -------------------------------------------------------------------
 
-loadDir("").catch(e => { els.listing.innerHTML = `<li>Ошибка: ${e.message}</li>`; });
+loadDir("").catch(e => {
+  els.files.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message)}</div>`;
+});
 connectStatus();

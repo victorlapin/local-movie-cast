@@ -90,8 +90,8 @@ class Streamer:
             str(path),
         ]
         logger.debug("ffprobe: %s", cmd)
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        data = json.loads(result.stdout)
+        result = subprocess.run(cmd, capture_output=True, check=True)
+        data = json.loads(result.stdout.decode("utf-8", errors="replace"))
 
         duration = float(data.get("format", {}).get("duration", 0) or 0)
         container_bitrate_raw = data.get("format", {}).get("bit_rate")

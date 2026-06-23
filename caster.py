@@ -30,6 +30,8 @@ def _snapshot(cc: Chromecast) -> dict[str, Any]:
     return {
         "uuid": str(cc.uuid),
         "name": cc.cast_info.friendly_name,
+        "cast_type": cc.cast_info.cast_type,  # 'cast' (video) | 'audio' | 'group'
+        "model": cc.cast_info.model_name,     # 'Chromecast Ultra', 'Google Home Mini', ...
         "app": app_name,
         "state": (ms.player_state if ms else None) or "IDLE",
         "file_title": ms.title if ms else None,

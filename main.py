@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import re
+import stat as stat_mod
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,6 +19,7 @@ from pydantic import BaseModel
 from caster import CastManager
 from config import PROJECT_ROOT, load_config
 from streamer import OUTPUT_MIME, StreamSession, Streamer
+from thumber import Thumber
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +34,7 @@ class AppState:
     config = None
     streamer: Optional[Streamer] = None
     cast_manager: Optional[CastManager] = None
+    thumber: Optional[Thumber] = None
     # device_uuid -> StreamSession
     sessions_by_device: dict[str, StreamSession] = {}
     # token -> (device_uuid, StreamSession)
@@ -47,6 +50,7 @@ state = AppState()
 async def lifespan(app: FastAPI):
     state.config = load_config()
     state.streamer = Streamer(state.config)
+    state.thumber = Thumber(state.config)
     state.cast_manager = CastManager()
     state.cast_manager.attach_loop(asyncio.get_event_loop())
     await asyncio.to_thread(state.cast_manager.discover, 5.0)
@@ -82,6 +86,28 @@ def _relpath(p: Path) -> str:
     return str(p.relative_to(state.config.media_root.resolve())).replace("\\", "/")
 
 
+# Windows file attribute bits.
+_FILE_ATTRIBUTE_HIDDEN = 0x2
+_FILE_ATTRIBUTE_SYSTEM = 0x4
+
+# Имена, которые Windows стабильно создаёт на каждом диске — скрываем явно
+# (на корне диска эти папки помечены system+hidden, но на всякий случай дублируем).
+_WINDOWS_JUNK_NAMES = {
+    "$RECYCLE.BIN", "RECYCLER", "System Volume Information",
+    "Thumbs.db", "desktop.ini", "$WinREAgent", "$Windows.~BT", "$Windows.~WS",
+}
+
+
+def _is_hidden(entry: Path) -> bool:
+    if entry.name.startswith(".") or entry.name in _WINDOWS_JUNK_NAMES:
+        return True
+    try:
+        attrs = getattr(entry.stat(), "st_file_attributes", 0)
+    except OSError:
+        return True  # нет доступа — тоже не показываем
+    return bool(attrs & (_FILE_ATTRIBUTE_HIDDEN | _FILE_ATTRIBUTE_SYSTEM))
+
+
 # --- /api/devices ------------------------------------------------------------
 
 @app.get("/api/devices")
@@ -113,7 +139,7 @@ async def api_browse(path: str = "") -> dict:
 
     try:
         for entry in sorted(target.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
-            if entry.name.startswith("."):
+            if _is_hidden(entry):
                 continue
             if entry.is_dir():
                 dirs.append({"name": entry.name, "path": _relpath(entry)})
@@ -160,6 +186,23 @@ async def api_tracks(path: str) -> dict:
             for t in probe.audio_tracks
         ],
     }
+
+
+# --- /api/thumb --------------------------------------------------------------
+
+@app.get("/api/thumb")
+async def api_thumb(path: str):
+    file_path = _resolve_under_root(path)
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    thumb = await asyncio.to_thread(state.thumber.get_or_make, file_path)
+    if thumb is None:
+        raise HTTPException(status_code=500, detail="Не удалось сгенерировать миниатюру")
+    return FileResponse(
+        thumb,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 # --- /api/cast ---------------------------------------------------------------

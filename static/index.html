@@ -15,7 +15,9 @@
   <main>
     <section class="browser">
       <div class="crumbs" id="crumbs"></div>
-      <ul id="listing" class="listing"></ul>
+      <div id="folders" class="folders"></div>
+      <div id="files" class="files"></div>
+      <div id="empty" class="empty" hidden>Пусто</div>
     </section>
 
     <aside class="sidebar">
@@ -24,11 +26,8 @@
       <h3 class="tracks-title" hidden>Аудиодорожки</h3>
       <ul id="tracks" class="tracks"></ul>
       <button id="cast-btn" class="cast-btn" disabled>Кастить</button>
-      <button id="stop-btn" class="stop-btn" hidden>Стоп</button>
     </aside>
   </main>
-
-  <footer id="status-bar" class="status-bar"></footer>
 
   <script src="/static/app.js"></script>
 </body>
