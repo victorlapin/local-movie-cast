@@ -7,7 +7,7 @@
 ## Требования
 
 - Windows 10 1803+ (нужны встроенные `curl` и `tar`)
-- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) — управление Python-окружением (см. установку ниже)
 - 3 Chromecast'а в одной LAN, mDNS не заблокирован Firewall'ом
 - (опционально) NVIDIA GPU для NVENC при транскоде HEVC
 
@@ -16,6 +16,10 @@
 Все команды — в **cmd** (не PowerShell).
 
 ```cmd
+REM 0. uv (один раз на всю машину; ставится в %USERPROFILE%\.local\bin, без админских прав)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+REM    после этого открой НОВЫЙ cmd, чтобы PATH подхватился
+
 git clone <repo> local-movie-cast
 cd local-movie-cast
 
@@ -28,7 +32,7 @@ notepad config.yaml
 REM    media_root  -- путь к папке с фильмами
 REM    host_ip     -- IP машины в LAN (ipconfig -> "IPv4 Address")
 
-REM 3. Запуск (создаст venv и поставит зависимости при первом запуске)
+REM 3. Запуск (uv сам создаст .venv и подтянет зависимости из uv.lock при первом запуске)
 run.bat
 ```
 

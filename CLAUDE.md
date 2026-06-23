@@ -115,12 +115,26 @@ local-movie-cast/
 
 Пользователь работает в **cmd**, не в PowerShell. Все команды в подсказках давать в cmd-формате (`set VAR=value`, `&&` работает, `;` для цепочки команд НЕ работает, переменные через `%VAR%`).
 
+Зависимости управляются через **uv** (`pyproject.toml` + `uv.lock`). `requirements.txt` нет.
+
 ```
-python -m venv .venv
-.venv\Scripts\activate.bat
-pip install -r requirements.txt
-REM отредактировать config.yaml — указать media_root, host_ip, пути к ffmpeg
+REM uv ставится один раз на машину
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+REM первая настройка проекта
+copy config.example.yaml config.yaml
+notepad config.yaml
+setup_ffmpeg.bat
+
+REM запуск (uv sync под капотом)
 run.bat
 ```
 
 Открыть `http://localhost:8000` или `http://<host_ip>:8000` с любого устройства в LAN.
+
+### Управление зависимостями через uv
+
+- `uv add <pkg>` — добавить пакет в `pyproject.toml` и обновить `uv.lock`
+- `uv lock --upgrade` — обновить все пакеты до последних совместимых версий
+- `uv sync` — привести `.venv` к состоянию из `uv.lock`
+- `uv run python <file>` — запустить со средой проекта без активации venv
