@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Optional
@@ -204,8 +205,11 @@ class Streamer:
                     "-c:a", "aac", "-b:a", str(TRANSCODE_AUDIO_BITRATE), "-ac", "2",
                 ]
 
+        # Fragmented MP4 для стриминга через pipe.
+        # delay_moov нужен для аудиокодеков (AC3/EAC3), параметры которых
+        # известны только после первого пакета.
         cmd += [
-            "-movflags", "frag_keyframe+empty_moov+default_base_moof+faststart",
+            "-movflags", "frag_keyframe+empty_moov+default_base_moof+delay_moov",
             "-f", "mp4",
             "pipe:1",
         ]
@@ -237,6 +241,12 @@ class Streamer:
         )
         session.process = proc
 
+        # Дренируем stderr в фоне в лог, иначе пайп переполнится и ffmpeg повиснет.
+        stderr_thread = threading.Thread(
+            target=_drain_stderr, args=(proc, session.token), daemon=True
+        )
+        stderr_thread.start()
+
         try:
             assert proc.stdout is not None
             while True:
@@ -265,3 +275,16 @@ class Streamer:
         if session.process is not None:
             Streamer._terminate(session.process)
             session.process = None
+
+
+def _drain_stderr(proc: subprocess.Popen, token: str) -> None:
+    """Читает stderr ffmpeg построчно и пишет в логгер. Работает в daemon-потоке."""
+    if proc.stderr is None:
+        return
+    try:
+        for raw in iter(proc.stderr.readline, b""):
+            line = raw.decode("utf-8", errors="replace").rstrip()
+            if line:
+                logger.warning("ffmpeg[%s]: %s", token[:8], line)
+    except Exception:
+        pass

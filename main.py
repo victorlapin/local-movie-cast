@@ -270,12 +270,9 @@ async def stream(token: str, request: Request):
 
     total = session.estimated_size or (1 << 40)  # для Content-Range — оценка
     range_header = request.headers.get("range")
+    user_agent = request.headers.get("user-agent", "?")
     start_byte = 0
     status = 200
-    # Content-Length НЕ выставляем намеренно: реальная длина ffmpeg-выхода может
-    # не совпасть с оценкой по битрейту, и uvicorn в этом случае валит запрос
-    # с "Response content shorter than Content-Length". Без Content-Length
-    # ответ уходит chunked transfer encoding'ом, что Chromecast прекрасно жуёт.
     headers: dict[str, str] = {
         "Content-Type": OUTPUT_MIME,
         "Accept-Ranges": "bytes",
@@ -287,8 +284,17 @@ async def stream(token: str, request: Request):
         if m:
             start_byte = int(m.group(1))
             end_byte = int(m.group(2)) if m.group(2) else total - 1
-            status = 206
-            headers["Content-Range"] = f"bytes {start_byte}-{end_byte}/{total}"
+            # Probe-запрос (bytes=0-) — отвечаем 200, иначе Chromecast зацикливается:
+            # на 206 он считает поток "ranged" и постоянно переоткрывает соединение,
+            # каждый раз перезапуская ffmpeg с нуля.
+            if start_byte > 0:
+                status = 206
+                headers["Content-Range"] = f"bytes {start_byte}-{end_byte}/{total}"
+
+    logger.info(
+        "stream req: token=%s method=%s range=%r start_byte=%d status=%d ua=%s",
+        token[:8], request.method, range_header, start_byte, status, user_agent[:40],
+    )
 
     if request.method == "HEAD":
         return JSONResponse(content=None, status_code=status, headers=headers)
