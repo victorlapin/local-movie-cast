@@ -29,7 +29,17 @@
 
   <main>
     <section class="browser">
-      <div class="crumbs" id="crumbs"></div>
+      <div class="browser-bar">
+        <div class="crumbs" id="crumbs"></div>
+        <div class="view-toggle" role="group" aria-label="Вид библиотеки">
+          <button id="view-grid" class="view-btn" title="Плитки">
+            <span class="material-symbols-outlined">grid_view</span>
+          </button>
+          <button id="view-list" class="view-btn" title="Список">
+            <span class="material-symbols-outlined">view_list</span>
+          </button>
+        </div>
+      </div>
       <section id="recent-section" class="recent-section" hidden>
         <h2 class="section-title">Недавно</h2>
         <div id="recent" class="recent"></div>

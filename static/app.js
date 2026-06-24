@@ -473,6 +473,24 @@ function connectStatus() {
   };
 }
 
+// --- view mode (grid / list) ------------------------------------------------
+
+function applyView(mode) {
+  const m = mode === "list" ? "list" : "grid";
+  els.files.dataset.view = m;
+  document.getElementById("view-grid").classList.toggle("active", m === "grid");
+  document.getElementById("view-list").classList.toggle("active", m === "list");
+}
+
+function setView(mode) {
+  localStorage.setItem("view", mode);
+  applyView(mode);
+}
+
+document.getElementById("view-grid").onclick = () => setView("grid");
+document.getElementById("view-list").onclick = () => setView("list");
+applyView(localStorage.getItem("view") || "grid");
+
 // --- theme ------------------------------------------------------------------
 
 const THEME_ICONS = { dark: "light_mode", light: "dark_mode" };
