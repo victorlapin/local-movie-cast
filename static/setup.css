@@ -85,6 +85,41 @@
 
 .field.collapsed input { max-width: 120px; }
 
+details.advanced {
+  margin-bottom: 20px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-sm);
+  background: var(--md-surface-container-high);
+}
+
+details.advanced summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+details.advanced summary::-webkit-details-marker { display: none; }
+details.advanced summary::before {
+  content: "▸";
+  font-size: 10px;
+  transition: transform 120ms;
+  display: inline-block;
+}
+details.advanced[open] summary::before {
+  transform: rotate(90deg);
+}
+
+details.advanced > .field {
+  padding: 4px 14px 14px;
+  margin: 0;
+}
+
 .setup-error {
   background: var(--md-error-container);
   color: var(--md-on-error-container);

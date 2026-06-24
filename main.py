@@ -465,9 +465,13 @@ async def api_setup_info() -> dict:
     }
 
 
+_ALLOWED_ENCODERS = {"h264_nvenc", "h264_qsv", "h264_amf", "libx264"}
+
+
 class SetupPayload(BaseModel):
     media_root: str
     host_ip: str
+    encoder: str = "h264_nvenc"
 
 
 @app.post("/api/setup/save")
@@ -477,6 +481,7 @@ async def api_setup_save(req: SetupPayload) -> dict:
         raise HTTPException(status_code=400, detail=f"Папка не существует: {media}")
     if not req.host_ip:
         raise HTTPException(status_code=400, detail="host_ip обязателен")
+    encoder = req.encoder if req.encoder in _ALLOWED_ENCODERS else "h264_nvenc"
 
     # Порт всегда 8000. Чтобы поменять — отредактировать config.yaml + рестарт.
     config_data = {
@@ -485,7 +490,7 @@ async def api_setup_save(req: SetupPayload) -> dict:
         "ffprobe_path": "bin\\ffprobe.exe",
         "host_ip": req.host_ip,
         "port": 8000,
-        "hevc_encoder": "h264_nvenc",
+        "hevc_encoder": encoder,
         "video_extensions": [".mkv", ".mp4", ".avi", ".m4v", ".mov", ".webm"],
     }
     config_path = PROJECT_ROOT / "config.yaml"

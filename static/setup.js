@@ -5,6 +5,7 @@ const els = {
   mediaRoot: document.getElementById("media-root"),
   hostIp: document.getElementById("host-ip"),
   hostIpCustom: document.getElementById("host-ip-custom"),
+  encoder: document.getElementById("encoder"),
   submit: document.getElementById("setup-submit"),
   submitLabel: document.querySelector("#setup-submit .cast-label"),
   error: document.getElementById("setup-error"),
@@ -59,6 +60,7 @@ els.form.onsubmit = async (ev) => {
 
   const host_ip = (els.hostIpCustom.value || els.hostIp.value || "").trim();
   const media_root = els.mediaRoot.value.trim();
+  const encoder = (els.encoder && els.encoder.value) || "h264_nvenc";
 
   if (!media_root) { showError("Укажи папку с фильмами"); return; }
   if (!host_ip)    { showError("Укажи IP машины"); return; }
@@ -70,7 +72,7 @@ els.form.onsubmit = async (ev) => {
     const r = await fetch("/api/setup/save", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({media_root, host_ip}),
+      body: JSON.stringify({media_root, host_ip, encoder}),
     });
     if (!r.ok) {
       let msg = "Ошибка " + r.status;

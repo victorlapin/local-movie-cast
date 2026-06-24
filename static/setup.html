@@ -36,6 +36,22 @@
         </div>
       </div>
 
+      <details class="advanced">
+        <summary>Дополнительно</summary>
+        <div class="field">
+          <label for="encoder">Транскодер для HEVC&nbsp;→&nbsp;H.264</label>
+          <select id="encoder" name="encoder">
+            <option value="h264_nvenc">NVIDIA NVENC (быстро, для GeForce)</option>
+            <option value="h264_qsv">Intel Quick Sync (для Intel iGPU)</option>
+            <option value="h264_amf">AMD AMF (для AMD Radeon)</option>
+            <option value="libx264">CPU (libx264, медленнее)</option>
+          </select>
+          <div class="hint">
+            Нужен только если попадётся фильм в HEVC (большинство в H.264 и проигрывается без транскода).
+          </div>
+        </div>
+      </details>
+
       <div id="setup-error" class="setup-error" hidden></div>
 
       <button type="submit" class="cast-btn" id="setup-submit">
