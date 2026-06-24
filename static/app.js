@@ -19,6 +19,8 @@ const els = {
   empty: document.getElementById("empty"),
   recentSection: document.getElementById("recent-section"),
   recent: document.getElementById("recent"),
+  librariesSection: document.getElementById("libraries-section"),
+  libraries: document.getElementById("libraries"),
   fileTitle: document.getElementById("file-title"),
   fileMeta: document.getElementById("file-meta"),
   tracksTitle: document.querySelector(".tracks-title"),
@@ -327,6 +329,18 @@ function renderCrumbs(currentPath) {
 function renderListing(data) {
   renderCrumbs(data.path);
 
+  // Корень — рендерим библиотеки крупными карточками + плюс/удаление.
+  if (data.path === "") {
+    renderLibraries(data.dirs);
+    els.folders.innerHTML = "";
+    els.folders.style.display = "none";
+    els.files.innerHTML = "";
+    els.empty.hidden = true;
+    return;
+  }
+
+  els.librariesSection.hidden = true;
+
   els.folders.innerHTML = "";
   if (data.parent != null) {
     const up = document.createElement("div");
@@ -352,6 +366,79 @@ function renderListing(data) {
 
   els.empty.hidden = !(data.dirs.length === 0 && data.files.length === 0 && data.parent == null);
   refreshCastingHighlights();
+}
+
+function renderLibraries(libs) {
+  els.librariesSection.hidden = false;
+  els.libraries.innerHTML = "";
+  for (const lib of libs) {
+    const card = document.createElement("div");
+    card.className = "library-card";
+    card.title = lib.name;
+    card.innerHTML = `
+      <span class="icon material-symbols-outlined">folder_open</span>
+      <span class="name">${escapeHtml(lib.name)}</span>
+      <button class="library-remove" title="Убрать">${mi("close")}</button>
+    `;
+    card.onclick = (ev) => {
+      if (ev.target.closest(".library-remove")) return;
+      loadDir(lib.path);
+    };
+    card.querySelector(".library-remove").onclick = (ev) => {
+      ev.stopPropagation();
+      removeLibrary(lib.path, lib.name);
+    };
+    els.libraries.appendChild(card);
+  }
+  // Кнопка «+» добавления библиотеки
+  const add = document.createElement("div");
+  add.className = "library-card library-add";
+  add.innerHTML = `<span class="icon material-symbols-outlined">add</span><span class="name">Добавить</span>`;
+  add.onclick = openLibraryAddModal;
+  els.libraries.appendChild(add);
+}
+
+function openLibraryAddModal() {
+  const modal = document.getElementById("library-add-modal");
+  const input = document.getElementById("library-add-path");
+  input.value = "";
+  if (typeof modal.showModal === "function") modal.showModal();
+  else modal.setAttribute("open", "");
+  setTimeout(() => input.focus(), 50);
+}
+
+(function initLibraryModal() {
+  const modal = document.getElementById("library-add-modal");
+  if (!modal) return;
+  const form = document.getElementById("library-add-form");
+  document.getElementById("library-add-cancel").onclick = () => modal.close();
+  modal.addEventListener("click", (ev) => {
+    const content = modal.querySelector(".modal-content");
+    if (content && !content.contains(ev.target)) modal.close();
+  });
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const path = document.getElementById("library-add-path").value.trim();
+    if (!path) return;
+    try {
+      await api("POST", "/api/libraries", { path });
+      modal.close();
+      await loadDir("");
+    } catch (e) {
+      showDialog(e.message, "error");
+    }
+  });
+})();
+
+async function removeLibrary(libIdOrPath, name) {
+  // libIdOrPath: путь в карточке = lib_id (просто idшник, не путь)
+  if (!confirm(`Убрать «${name}» из списка библиотек?\n\nФайлы на диске НЕ удаляются.`)) return;
+  try {
+    await api("DELETE", `/api/libraries/${encodeURIComponent(libIdOrPath)}`);
+    await loadDir("");
+  } catch (e) {
+    showDialog(e.message, "error");
+  }
 }
 
 function castingPaths() {

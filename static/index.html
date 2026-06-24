@@ -44,6 +44,10 @@
         <h2 class="section-title">Недавно</h2>
         <div id="recent" class="recent"></div>
       </section>
+      <section id="libraries-section" class="libraries-section" hidden>
+        <h2 class="section-title">Библиотеки</h2>
+        <div id="libraries" class="libraries"></div>
+      </section>
       <div id="folders" class="folders"></div>
       <div id="files" class="files"></div>
       <div id="empty" class="empty" hidden>Пусто</div>
@@ -62,6 +66,19 @@
       <div id="cast-controls" class="cast-controls"></div>
     </aside>
   </main>
+
+  <dialog id="library-add-modal" class="modal">
+    <form class="modal-content" method="dialog" id="library-add-form">
+      <span class="modal-icon material-symbols-outlined">create_new_folder</span>
+      <h3 class="modal-title">Добавить библиотеку</h3>
+      <p class="modal-message">Укажи путь к папке с фильмами.</p>
+      <input type="text" id="library-add-path" class="modal-input" placeholder="D:\Movies" required>
+      <div class="modal-actions">
+        <button type="button" class="cast-btn-outlined" id="library-add-cancel">Отмена</button>
+        <button type="submit" class="cast-btn cast-btn-compact">Добавить</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="modal" class="modal" aria-live="polite">
     <div class="modal-content">

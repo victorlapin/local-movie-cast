@@ -32,7 +32,7 @@ import yaml
 import net
 import power
 from caster import CastManager
-from config import PROJECT_ROOT, load_config
+from config import PROJECT_ROOT, lib_id_for, load_config
 from positions import Positions
 from recents import Recents
 from streamer import OUTPUT_MIME, StreamSession, Streamer
@@ -131,21 +131,37 @@ app = FastAPI(lifespan=lifespan)
 
 # --- утилиты пути ------------------------------------------------------------
 
-def _resolve_under_root(rel_or_abs: str) -> Path:
-    """Преобразует строку в Path внутри media_root, не даёт выйти наружу."""
-    p = Path(rel_or_abs)
-    if not p.is_absolute():
-        p = state.config.media_root / p
-    p = p.resolve()
+def _split_lib_path(path: str) -> tuple[str, str]:
+    """Разбивает '<lib_id>/<rel>' на (lib_id, rel). Пустой path → ('', '')."""
+    if not path:
+        return "", ""
+    parts = path.split("/", 1)
+    return parts[0], parts[1] if len(parts) > 1 else ""
+
+
+def _resolve_under_root(api_path: str) -> Path:
+    """Резолвит API-путь '<lib_id>/<rel>' в абсолютный Path. Защищает от выхода
+    за пределы библиотеки."""
+    lib_id, rel = _split_lib_path(api_path)
+    libs = state.config.libraries()
+    if lib_id not in libs:
+        raise HTTPException(status_code=404, detail=f"Библиотека {lib_id} не найдена")
+    root = libs[lib_id]
+    target = root if not rel else (root / rel).resolve()
     try:
-        p.relative_to(state.config.media_root.resolve())
+        target.relative_to(root)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Путь вне media_root")
-    return p
+        raise HTTPException(status_code=400, detail="Путь вне библиотеки")
+    return target
 
 
-def _relpath(p: Path) -> str:
-    return str(p.relative_to(state.config.media_root.resolve())).replace("\\", "/")
+def _relpath(p: Path, lib_id: str, lib_root: Path) -> str:
+    """Делает API-путь '<lib_id>/<rel>'. Если p == lib_root — вернёт просто lib_id."""
+    rel = p.relative_to(lib_root)
+    rel_str = str(rel).replace("\\", "/")
+    if rel_str == ".":
+        return lib_id
+    return f"{lib_id}/{rel_str}"
 
 
 # Windows file attribute bits.
@@ -180,7 +196,7 @@ async def api_devices() -> list[dict]:
         sess = state.sessions_by_device.get(d["uuid"])
         if sess:
             d["our_mode"] = sess.mode
-            d["our_file"] = _relpath(sess.path)
+            d["our_file"] = sess.rel_path
             d["our_audio_index"] = sess.audio_track.audio_index
             d["our_audio_lang"] = sess.audio_track.lang
             d["our_audio_codec"] = sess.audio_track.codec
@@ -191,11 +207,31 @@ async def api_devices() -> list[dict]:
 
 @app.get("/api/browse")
 async def api_browse(path: str = "") -> dict:
-    target = _resolve_under_root(path) if path else state.config.media_root.resolve()
+    libs = state.config.libraries()
+
+    # Корень — отдаём список библиотек как «папки» с типом library.
+    if not path:
+        # Дисамбигуация по basename: если совпадают, добавляем родителя.
+        by_name: dict[str, list[Path]] = {}
+        for root in libs.values():
+            by_name.setdefault(root.name or str(root), []).append(root)
+        dirs: list[dict] = []
+        for lib_id, root in libs.items():
+            name = root.name or str(root)
+            if len(by_name.get(name, [])) > 1:
+                name = f"{name} ({root.parent})"
+            dirs.append({"name": name, "path": lib_id, "type": "library"})
+        return {"path": "", "parent": None, "dirs": dirs, "files": []}
+
+    lib_id, _ = _split_lib_path(path)
+    if lib_id not in libs:
+        raise HTTPException(status_code=404, detail="Библиотека не найдена")
+    lib_root = libs[lib_id]
+    target = _resolve_under_root(path)
     if not target.exists() or not target.is_dir():
         raise HTTPException(status_code=404, detail="Директория не найдена")
 
-    dirs: list[dict] = []
+    dirs = []
     files: list[dict] = []
     video_exts = set(state.config.video_extensions)
 
@@ -204,22 +240,33 @@ async def api_browse(path: str = "") -> dict:
             if _is_hidden(entry):
                 continue
             if entry.is_dir():
-                dirs.append({"name": entry.name, "path": _relpath(entry)})
+                dirs.append({"name": entry.name, "path": _relpath(entry, lib_id, lib_root)})
             elif entry.suffix.lower() in video_exts:
                 try:
                     size = entry.stat().st_size
                 except OSError:
                     size = None
-                files.append({"name": entry.name, "path": _relpath(entry), "size": size})
+                files.append({
+                    "name": entry.name,
+                    "path": _relpath(entry, lib_id, lib_root),
+                    "size": size,
+                })
     except PermissionError:
         raise HTTPException(status_code=403, detail="Нет доступа к директории")
 
-    parent = None
-    if target != state.config.media_root.resolve():
-        parent = _relpath(target.parent)
+    # parent: либо вверх к родителю внутри библиотеки, либо к самой библиотеке (lib_id),
+    # либо к списку библиотек ("").
+    if target == lib_root:
+        parent = ""  # назад к списку библиотек
+    else:
+        parent = _relpath(target.parent, lib_id, lib_root)
 
-    return {"path": _relpath(target) if target != state.config.media_root.resolve() else "",
-            "parent": parent, "dirs": dirs, "files": files}
+    return {
+        "path": _relpath(target, lib_id, lib_root),
+        "parent": parent,
+        "dirs": dirs,
+        "files": files,
+    }
 
 
 # --- /api/tracks -------------------------------------------------------------
@@ -250,6 +297,69 @@ async def api_tracks(path: str) -> dict:
             for t in probe.audio_tracks
         ],
     }
+
+
+# --- /api/libraries ----------------------------------------------------------
+
+class LibraryAddRequest(BaseModel):
+    path: str
+
+
+def _save_libraries_to_yaml() -> None:
+    """Перезаписать в config.yaml только секцию media_roots, остальное не трогая."""
+    config_path = PROJECT_ROOT / "config.yaml"
+    if not config_path.exists():
+        raise HTTPException(status_code=500, detail="config.yaml не найден")
+    with config_path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    data.pop("media_root", None)  # уберём legacy-поле если есть
+    data["media_roots"] = [str(p) for p in state.config.media_roots]
+    config_path.write_text(
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+@app.get("/api/libraries")
+async def api_libraries_list() -> list[dict]:
+    out = []
+    libs = state.config.libraries()
+    # Дисамбигуация по basename
+    by_name: dict[str, int] = {}
+    for root in libs.values():
+        by_name[root.name or str(root)] = by_name.get(root.name or str(root), 0) + 1
+    for lib_id, root in libs.items():
+        name = root.name or str(root)
+        if by_name.get(name, 0) > 1:
+            name = f"{name} ({root.parent})"
+        out.append({"id": lib_id, "path": str(root), "name": name})
+    return out
+
+
+@app.post("/api/libraries")
+async def api_libraries_add(req: LibraryAddRequest) -> dict:
+    p = Path(req.path)
+    if not p.exists() or not p.is_dir():
+        raise HTTPException(status_code=400, detail=f"Папка не существует: {p}")
+    p = p.resolve()
+    if p in state.config.media_roots:
+        raise HTTPException(status_code=400, detail="Уже добавлена")
+    state.config.media_roots.append(p)
+    _save_libraries_to_yaml()
+    logger.info("Добавлена библиотека: %s", p)
+    return {"ok": True, "id": lib_id_for(p)}
+
+
+@app.delete("/api/libraries/{lib_id}")
+async def api_libraries_delete(lib_id: str) -> dict:
+    libs = state.config.libraries()
+    if lib_id not in libs:
+        raise HTTPException(status_code=404, detail="Не найдена")
+    target = libs[lib_id]
+    state.config.media_roots = [p for p in state.config.media_roots if p != target]
+    _save_libraries_to_yaml()
+    logger.info("Удалена библиотека: %s", target)
+    return {"ok": True}
 
 
 # --- /api/recent -------------------------------------------------------------
@@ -559,7 +669,7 @@ async def api_setup_save(req: SetupPayload) -> dict:
 
     # Порт всегда 8000. Чтобы поменять — отредактировать config.yaml + рестарт.
     config_data = {
-        "media_root": str(media),
+        "media_roots": [str(media)],
         "ffmpeg_path": "bin\\ffmpeg.exe",
         "ffprobe_path": "bin\\ffprobe.exe",
         "host_ip": req.host_ip,
