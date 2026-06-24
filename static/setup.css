@@ -1,0 +1,116 @@
+/* Стили для setup-wizard, опираются на M3-токены из style.css */
+
+.setup-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 40px 20px;
+  background: var(--md-surface);
+  overflow-y: auto;
+  height: auto;
+}
+
+.setup-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--md-surface-container);
+  border-radius: var(--md-radius-lg);
+  padding: 32px;
+  box-shadow: var(--md-elev-2);
+}
+
+.setup-card h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.setup-intro {
+  margin: 0 0 28px;
+  color: var(--md-on-surface-variant);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.field {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.field input,
+.field select {
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-radius-sm);
+  color: var(--md-on-surface);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 120ms, background-color 120ms;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--md-primary);
+  background: color-mix(in srgb, var(--md-primary) 6%, var(--md-surface-container-high));
+}
+
+.field .hint {
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+  line-height: 1.4;
+}
+
+.field .hint code {
+  background: var(--md-surface-container-high);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+#host-ip-custom { margin-top: 6px; }
+
+.field.collapsed input { max-width: 120px; }
+
+.setup-error {
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+  padding: 10px 14px;
+  border-radius: var(--md-radius-sm);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+#setup-submit { width: 100%; margin-top: 8px; }
+
+.setup-done {
+  text-align: center;
+  padding: 20px 0;
+}
+.setup-done h2 {
+  margin: 0 0 8px;
+  color: var(--md-tertiary);
+  font-size: 20px;
+}
+.setup-done p {
+  color: var(--md-on-surface-variant);
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .setup-body { padding: 16px; }
+  .setup-card { padding: 20px; }
+}

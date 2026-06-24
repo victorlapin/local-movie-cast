@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>local-movie-cast — Настройка</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/setup.css">
+</head>
+<body class="setup-body">
+  <div class="setup-card">
+    <h1>Настройка local-movie-cast</h1>
+    <p class="setup-intro">
+      Один раз нужно указать, где лежат фильмы и какой IP машины будет видеть Chromecast.
+      Дальше всё запустится автоматически.
+    </p>
+
+    <form id="setup-form">
+      <div class="field">
+        <label for="media-root">Папка с фильмами</label>
+        <input type="text" id="media-root" name="media-root" autocomplete="off" required>
+        <div class="hint">Путь к диску или папке с твоей коллекцией фильмов.</div>
+      </div>
+
+      <div class="field">
+        <label for="host-ip">IP машины в локальной сети</label>
+        <select id="host-ip" name="host-ip" required></select>
+        <input type="text" id="host-ip-custom" placeholder="Или введи вручную" autocomplete="off">
+        <div class="hint">
+          Если телевизор и компьютер должны быть в одной сети
+          (обычно адрес начинается на <code>192.168.</code>).
+        </div>
+      </div>
+
+      <div id="setup-error" class="setup-error" hidden></div>
+
+      <button type="submit" class="cast-btn" id="setup-submit">
+        <span class="material-symbols-outlined">check</span>
+        <span class="cast-label">Сохранить и запустить</span>
+      </button>
+    </form>
+
+    <div id="setup-done" class="setup-done" hidden>
+      <h2>Готово!</h2>
+      <p>Запускаю сервис…</p>
+    </div>
+  </div>
+
+  <script src="/static/setup.js"></script>
+</body>
+</html>

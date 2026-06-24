@@ -16,6 +16,11 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import os
+
+import yaml
+
+import net
 import power
 from caster import CastManager
 from config import PROJECT_ROOT, load_config
@@ -48,8 +53,10 @@ state = AppState()
 
 # --- lifespan ----------------------------------------------------------------
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+async def _init_with_config() -> None:
+    """Инициализация Streamer/Thumber/CastManager после того, как config есть.
+    Вызывается из lifespan на старте и из /api/setup/save после первого
+    создания config.yaml."""
     state.config = load_config()
     state.streamer = Streamer(state.config)
     state.thumber = Thumber(state.config)
@@ -59,12 +66,22 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(state.cast_manager.discover, 5.0)
     logger.info("Готов: %d Chromecast(ов), порт %d, host_ip %s",
                 len(state.cast_manager.devices), state.config.port, state.config.host_ip)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        await _init_with_config()
+    except FileNotFoundError:
+        state.config = None
+        logger.warning("config.yaml не найден — стартую в setup-режиме, открой /")
     try:
         yield
     finally:
         for _, sess in state.sessions_by_device.items():
             Streamer.terminate_session(sess)
-        state.cast_manager.shutdown()
+        if state.cast_manager is not None:
+            state.cast_manager.shutdown()
         power.release_all()
 
 
@@ -412,6 +429,74 @@ async def stream(token: str, request: Request):
     return StreamingResponse(iter_bytes(), status_code=status, headers=headers, media_type=OUTPUT_MIME)
 
 
+# --- setup wizard ------------------------------------------------------------
+
+@app.middleware("http")
+async def require_config_for_api(request: Request, call_next):
+    """До завершения setup'а — все /api/* кроме /api/setup/* отдают 503."""
+    if state.config is None:
+        path = request.url.path
+        if path.startswith("/api/") and not path.startswith("/api/setup"):
+            return JSONResponse({"detail": "Setup required"}, status_code=503)
+    return await call_next(request)
+
+
+@app.get("/api/setup/info")
+async def api_setup_info() -> dict:
+    detected = net.detect_host_ip()
+    interfaces = net.list_interfaces()
+    # Дефолтная папка с видео
+    default_media = str(Path(os.environ.get("USERPROFILE", "C:\\")) / "Videos")
+    return {
+        "detected_ip": detected,
+        "interfaces": interfaces,
+        "default_media": default_media,
+        "default_port": 8000,
+        "configured": state.config is not None,
+    }
+
+
+class SetupPayload(BaseModel):
+    media_root: str
+    host_ip: str
+
+
+@app.post("/api/setup/save")
+async def api_setup_save(req: SetupPayload) -> dict:
+    media = Path(req.media_root)
+    if not media.exists() or not media.is_dir():
+        raise HTTPException(status_code=400, detail=f"Папка не существует: {media}")
+    if not req.host_ip:
+        raise HTTPException(status_code=400, detail="host_ip обязателен")
+
+    # Порт всегда 8000. Чтобы поменять — отредактировать config.yaml + рестарт.
+    config_data = {
+        "media_root": str(media),
+        "ffmpeg_path": "bin\\ffmpeg.exe",
+        "ffprobe_path": "bin\\ffprobe.exe",
+        "host_ip": req.host_ip,
+        "port": 8000,
+        "hevc_encoder": "h264_nvenc",
+        "video_extensions": [".mkv", ".mp4", ".avi", ".m4v", ".mov", ".webm"],
+    }
+    config_path = PROJECT_ROOT / "config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(config_data, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    logger.info("Setup сохранён: %s", config_path)
+
+    # Soft-reload: инициализируем подсистемы в том же процессе.
+    # Альтернатива (рестарт процесса) спотыкается о TIME_WAIT на TCP-порту.
+    try:
+        await _init_with_config()
+    except Exception as e:
+        logger.exception("Soft-reload после setup упал")
+        raise HTTPException(status_code=500, detail=f"Конфиг сохранён, но запуск упал: {e}")
+
+    return {"ok": True}
+
+
 # --- статика -----------------------------------------------------------------
 
 _static_dir = PROJECT_ROOT / "static"
@@ -419,6 +504,8 @@ _static_dir = PROJECT_ROOT / "static"
 
 @app.get("/")
 async def index():
+    if state.config is None:
+        return FileResponse(_static_dir / "setup.html")
     return FileResponse(_static_dir / "index.html")
 
 
@@ -449,11 +536,17 @@ if __name__ == "__main__":
 
     from tray import start_tray
 
-    cfg = load_config()
+    try:
+        cfg = load_config()
+        port = cfg.port
+    except FileNotFoundError:
+        port = 8000
+        logger.warning("config.yaml отсутствует — стартую на дефолтном порту %d", port)
+
     config = uvicorn.Config(
         "main:app",
         host="0.0.0.0",
-        port=cfg.port,
+        port=port,
         log_level="info",
         timeout_graceful_shutdown=2,
     )
