@@ -123,20 +123,33 @@ function renderDevices() {
     const model = `<div class="dev-model">${escapeHtml(d.model || d.cast_type || "")}</div>`;
     const status = `<div class="dev-status">${deviceStatusHtml(d)}</div>`;
 
-    let stopBtn = "";
+    let controls = "";
     if (d.our_file) {
-      stopBtn = `<button class="dev-stop" data-uuid="${d.uuid}" title="Остановить">×</button>`;
+      const playing = (d.state || "").toUpperCase() === "PLAYING";
+      const playBtnLabel = playing ? "⏸" : "▶";
+      const playBtnTitle = playing ? "Пауза" : "Играть";
+      const playBtnAction = playing ? "pause" : "play";
+      controls = `
+        <div class="dev-controls">
+          <button class="dev-play" data-action="${playBtnAction}" title="${playBtnTitle}">${playBtnLabel}</button>
+          <button class="dev-stop" title="Остановить">×</button>
+        </div>`;
     }
 
-    tab.innerHTML = head + model + status + stopBtn;
+    tab.innerHTML = head + model + status + controls;
 
     tab.onclick = (ev) => {
-      if (ev.target.classList.contains("dev-stop")) return;
+      if (ev.target.closest(".dev-controls")) return;
       state.activeDeviceUuid = d.uuid;
       renderDevices();
     };
     const stop = tab.querySelector(".dev-stop");
     if (stop) stop.onclick = (ev) => { ev.stopPropagation(); stopDevice(d.uuid); };
+    const play = tab.querySelector(".dev-play");
+    if (play) play.onclick = (ev) => {
+      ev.stopPropagation();
+      controlDevice(d.uuid, play.dataset.action);
+    };
 
     els.devices.appendChild(tab);
   }
@@ -149,6 +162,11 @@ function renderDevices() {
 
 async function stopDevice(uuid) {
   try { await api("POST", "/api/stop", { device_uuid: uuid }); }
+  catch (e) { alert(e.message); }
+}
+
+async function controlDevice(uuid, action) {
+  try { await api("POST", "/api/control", { device_uuid: uuid, action }); }
   catch (e) { alert(e.message); }
 }
 

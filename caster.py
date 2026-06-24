@@ -120,6 +120,12 @@ class CastManager:
         cc.media_controller.play_media(url, mime_type, title=title)
         cc.media_controller.block_until_active(timeout=10)
 
+    def pause(self, uuid: str) -> None:
+        self.get(uuid).media_controller.pause()
+
+    def play(self, uuid: str) -> None:
+        self.get(uuid).media_controller.play()
+
     def stop(self, uuid: str) -> None:
         cc = self.get(uuid)
         try:

@@ -263,6 +263,31 @@ class StopRequest(BaseModel):
     device_uuid: str
 
 
+class ControlRequest(BaseModel):
+    device_uuid: str
+    action: str  # 'pause' | 'play'
+
+
+@app.post("/api/control")
+async def api_control(req: ControlRequest) -> dict:
+    if req.device_uuid not in state.cast_manager.devices:
+        raise HTTPException(status_code=404, detail="Устройство не найдено")
+    cm = state.cast_manager
+    try:
+        if req.action == "pause":
+            await asyncio.to_thread(cm.pause, req.device_uuid)
+        elif req.action == "play":
+            await asyncio.to_thread(cm.play, req.device_uuid)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown action: {req.action}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("control упал")
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"ok": True}
+
+
 @app.post("/api/stop")
 async def api_stop(req: StopRequest) -> dict:
     if req.device_uuid not in state.cast_manager.devices:
