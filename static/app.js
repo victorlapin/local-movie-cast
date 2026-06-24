@@ -224,6 +224,7 @@ async function loadDir(path) {
   state.currentPath = path;
   clearSelection();
   const data = await api("GET", `/api/browse?path=${encodeURIComponent(path)}`);
+  state.lastListing = data;
   renderListing(data);
   if (!path) loadRecent();
   else els.recentSection.hidden = true;
@@ -360,7 +361,7 @@ function renderListing(data) {
   els.folders.style.display = (data.dirs.length || data.parent != null) ? "" : "none";
 
   els.files.innerHTML = "";
-  for (const f of data.files) {
+  for (const f of sortFiles(data.files)) {
     els.files.appendChild(makeTile(f));
   }
 
@@ -689,6 +690,50 @@ function setView(mode) {
 document.getElementById("view-grid").onclick = () => setView("grid");
 document.getElementById("view-list").onclick = () => setView("list");
 applyView(localStorage.getItem("view") || "grid");
+
+// --- sort -------------------------------------------------------------------
+
+function getSortMode() {
+  return localStorage.getItem("sort") || "name-asc";
+}
+
+function sortFiles(files) {
+  const mode = getSortMode();
+  const arr = [...files];
+  // Группировка: латиница/цифры (0), кириллица (1), всё прочее (2).
+  // Latin сначала при ascending, Cyrillic первым при descending.
+  const nameGroup = (s) => {
+    if (!s) return 9;
+    const c = s.charCodeAt(0);
+    if (c < 0x80) return 0;
+    if (c >= 0x0400 && c <= 0x04FF) return 1;
+    return 2;
+  };
+  const byName = (a, b) => {
+    const ga = nameGroup(a.name);
+    const gb = nameGroup(b.name);
+    if (ga !== gb) return ga - gb;
+    return (a.name || "").localeCompare(b.name || "", undefined, { numeric: true });
+  };
+  switch (mode) {
+    case "name-desc": arr.sort((a, b) => byName(b, a)); break;
+    case "date-desc": arr.sort((a, b) => (b.mtime || 0) - (a.mtime || 0)); break;
+    case "date-asc":  arr.sort((a, b) => (a.mtime || 0) - (b.mtime || 0)); break;
+    case "size-desc": arr.sort((a, b) => (b.size || 0) - (a.size || 0)); break;
+    case "size-asc":  arr.sort((a, b) => (a.size || 0) - (b.size || 0)); break;
+    case "name-asc":
+    default:          arr.sort(byName); break;
+  }
+  return arr;
+}
+
+const sortSelect = document.getElementById("sort-select");
+sortSelect.value = getSortMode();
+sortSelect.onchange = () => {
+  localStorage.setItem("sort", sortSelect.value);
+  // Перерисуем текущую папку, не перегружая запросом.
+  if (state.lastListing) renderListing(state.lastListing);
+};
 
 // --- theme ------------------------------------------------------------------
 

@@ -242,14 +242,19 @@ async def api_browse(path: str = "") -> dict:
             if entry.is_dir():
                 dirs.append({"name": entry.name, "path": _relpath(entry, lib_id, lib_root)})
             elif entry.suffix.lower() in video_exts:
+                size = None
+                mtime = None
                 try:
-                    size = entry.stat().st_size
+                    st = entry.stat()
+                    size = st.st_size
+                    mtime = st.st_mtime
                 except OSError:
-                    size = None
+                    pass
                 files.append({
                     "name": entry.name,
                     "path": _relpath(entry, lib_id, lib_root),
                     "size": size,
+                    "mtime": mtime,
                 })
     except PermissionError:
         raise HTTPException(status_code=403, detail="Нет доступа к директории")
