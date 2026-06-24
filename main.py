@@ -23,10 +23,9 @@ from recents import Recents
 from streamer import OUTPUT_MIME, StreamSession, Streamer
 from thumber import Thumber
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+from logging_setup import setup_logging
+
+setup_logging()
 logger = logging.getLogger("local-movie-cast")
 
 

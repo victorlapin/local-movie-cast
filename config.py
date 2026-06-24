@@ -1,13 +1,23 @@
 """Загрузка config.yaml. Пути ffmpeg/ffprobe резолвятся относительно корня проекта."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import List
 
 import yaml
 from pydantic import BaseModel, Field
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+
+def _app_dir() -> Path:
+    """Корень установки. В frozen-режиме (PyInstaller) — рядом с .exe,
+    иначе — рядом с этим файлом. Используется для config.yaml, bin/, .cache/."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+PROJECT_ROOT = _app_dir()
 
 
 class Config(BaseModel):
