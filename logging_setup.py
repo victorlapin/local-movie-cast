@@ -49,5 +49,6 @@ def setup_logging(level: int = logging.INFO) -> None:
 
     # PyChromecast'овский socket_client любит логировать ERROR на каждом
     # сетевом икотке (retry, disconnect, etc.) — нам это не actionable.
-    # Приглушаем до WARNING, чтобы не засорять лог.
-    logging.getLogger("pychromecast.socket_client").setLevel(logging.WARNING)
+    # setLevel(N) пропускает уровни >= N, а ERROR (40) > WARNING (30),
+    # поэтому глушим до CRITICAL.
+    logging.getLogger("pychromecast.socket_client").setLevel(logging.CRITICAL)
