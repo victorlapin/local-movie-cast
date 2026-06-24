@@ -513,9 +513,11 @@ _static_dir = PROJECT_ROOT / "static"
 
 @app.get("/")
 async def index():
-    if state.config is None:
-        return FileResponse(_static_dir / "setup.html")
-    return FileResponse(_static_dir / "index.html")
+    # no-store, чтобы браузер не показывал старую копию index.html, когда
+    # мы в setup-режиме (и наоборот). Иначе будут 503 от закэшированного app.js.
+    headers = {"Cache-Control": "no-store"}
+    target = "setup.html" if state.config is None else "index.html"
+    return FileResponse(_static_dir / target, headers=headers)
 
 
 app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")

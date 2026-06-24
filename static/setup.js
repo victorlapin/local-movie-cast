@@ -80,7 +80,9 @@ els.form.onsubmit = async (ev) => {
     els.form.hidden = true;
     els.done.hidden = false;
     // Soft-reload отработал внутри сервера — можно сразу на главную.
-    setTimeout(() => { window.location.href = "/"; }, 800);
+    setTimeout(() => { window.location.replace("/"); }, 600);
+    // Дублирующая страховка на случай блокировки автонавигации.
+    setTimeout(() => { window.location.reload(); }, 1800);
   } catch (e) {
     showError(e.message);
     els.submit.disabled = false;

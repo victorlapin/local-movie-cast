@@ -58,6 +58,12 @@ async function api(method, url, body) {
     opts.body = JSON.stringify(body);
   }
   const r = await fetch(url, opts);
+  if (r.status === 503) {
+    // Сервис в setup-режиме (или вышел в него) — отправляем юзера на /
+    // чтобы сервер сам решил, что показать.
+    window.location.replace("/");
+    throw new Error("setup required");
+  }
   if (!r.ok) {
     let msg = `${r.status}`;
     try { const j = await r.json(); msg = j.detail || msg; } catch {}
