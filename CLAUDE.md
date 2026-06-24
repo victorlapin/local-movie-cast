@@ -72,24 +72,36 @@ hevc_encoder: h264_nvenc           # libx264 если NVENC недоступен
 
 ```
 local-movie-cast/
-  main.py              # FastAPI app + роуты
-  caster.py            # обёртка над PyChromecast: discovery, cast, status callbacks
-  streamer.py          # ffprobe + ffmpeg pipe; выбор direct/transcode
-  config.py            # загрузка config.yaml
+  main.py              # FastAPI app + роуты + setup wizard + uvicorn в потоке + трей
+  caster.py            # обёртка над PyChromecast: CastBrowser, cast, status callbacks
+  streamer.py          # ffprobe + ffmpeg pipe; выбор direct / audio-transcode / video-transcode
+  thumber.py           # генерация миниатюр через ffmpeg, кэш в .cache/thumbs/
+  recents.py           # JSON-лог недавно открытого в .cache/recent.json
+  power.py             # запрет ухода Windows в сон во время активного каста
+  net.py               # auto-detect host_ip + список интерфейсов для setup wizard
+  tray.py              # системный трей (pystray + PIL для генерации иконки)
+  logging_setup.py     # RotatingFileHandler в .cache/logs/app.log + stream handler
+  config.py            # загрузка config.yaml; PROJECT_ROOT frozen-aware
+  make_icon.py         # генерит app.ico для PyInstaller-сборки
   static/
-    index.html         # одна страница: дерево файлов, переключатель устройств, статус
-    app.js             # fetch + EventSource, ванильный JS
-    style.css
-  config.yaml
-  requirements.txt
-  run.bat              # python -m uvicorn main:app --host 0.0.0.0 --port 8000
+    index.html         # одна страница: дерево файлов, переключатель устройств, недавнее
+    setup.html         # wizard первого запуска: media_root, host_ip, encoder
+    app.js / setup.js  # ванильный JS, fetch + EventSource
+    style.css / setup.css
+  config.yaml          # gitignored; создаётся setup-wizard'ом или ручкой
+  pyproject.toml       # зависимости через uv
+  uv.lock
+  local-movie-cast.spec  # PyInstaller spec (--windowed --onedir)
+  setup_ffmpeg.bat     # скачивает портативный ffmpeg в bin/
+  run.bat              # uv run python main.py (запуск из исходников)
+  build.bat            # PyInstaller-сборка портабла
   README.md
 ```
 
 ## UI (одна страница)
 
 - **Слева** — дерево файлов с ленивым раскрытием поддиректорий. Клик по видеофайлу → запрос `/api/tracks` → показ списка аудиодорожек.
-- **Сверху** — табы трёх Chromecast-устройств. Активный таб = устройство, на которое пойдёт каст.
+- **Сверху** — табы Chromecast-устройств (количество — сколько найдено в сети). Активный таб = устройство, на которое пойдёт каст.
 - **Снизу** — статус-плашка на устройство: `Idle` / `Playing: Inception.mkv [eng AAC] · direct` с индикатором режима (direct / transcode).
 
 Поиск/фильтр по файлам не делается в первой версии — только навигация.
