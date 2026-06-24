@@ -473,6 +473,29 @@ function connectStatus() {
   };
 }
 
+// --- theme ------------------------------------------------------------------
+
+const THEME_ICONS = { dark: "light_mode", light: "dark_mode" };
+
+function applyThemeButton() {
+  const t = document.documentElement.getAttribute("data-theme") || "dark";
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  const icon = btn.querySelector(".material-symbols-outlined");
+  if (icon) icon.textContent = THEME_ICONS[t];
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  applyThemeButton();
+}
+
+document.getElementById("theme-toggle").onclick = toggleTheme;
+applyThemeButton();
+
 // --- version ----------------------------------------------------------------
 
 async function loadVersion() {

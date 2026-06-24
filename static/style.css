@@ -1,7 +1,10 @@
-/* Material 3 dark theme — handcrafted, без MDC. */
+/* Material 3 — handcrafted dark + light темы.
+   Тема выбирается через `[data-theme="dark"|"light"]` на <html>;
+   дефолт — dark. */
 
-:root {
-  /* M3 dark color roles (адаптированы под наш сине-зелёный акцент). */
+:root,
+[data-theme="dark"] {
+  /* M3 dark color roles (наш сине-зелёный акцент). */
   --md-primary: #a5c8ff;
   --md-on-primary: #00315c;
   --md-primary-container: #00497d;
@@ -35,6 +38,56 @@
   --md-outline: #8c9199;
   --md-outline-variant: #43474e;
 
+  /* В тёмной теме M3 elevation делается тональностью поверхности
+     (surface-container-low/high/highest), а не тенями. Поэтому тени тут
+     еле-еле заметные — только для финишных штрихов. */
+  --md-elev-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --md-elev-2: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --md-elev-3: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] {
+  --md-primary: #0a5db1;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #d4e3ff;
+  --md-on-primary-container: #001c3a;
+
+  --md-secondary: #545f71;
+  --md-on-secondary: #ffffff;
+  --md-secondary-container: #d8e3f8;
+  --md-on-secondary-container: #111c2b;
+
+  --md-tertiary: #3b6a4a;
+  --md-on-tertiary: #ffffff;
+  --md-tertiary-container: #bcf0c8;
+  --md-on-tertiary-container: #00210f;
+
+  --md-error: #ba1a1a;
+  --md-on-error: #ffffff;
+  --md-error-container: #ffdad6;
+  --md-on-error-container: #410002;
+
+  --md-surface: #fafaff;
+  --md-on-surface: #1a1c1e;
+  --md-on-surface-variant: #44474e;
+
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f3f3f8;
+  --md-surface-container: #eeeef3;
+  --md-surface-container-high: #e8e8ed;
+  --md-surface-container-highest: #e2e2e7;
+
+  --md-outline: #74777f;
+  --md-outline-variant: #c4c6cf;
+
+  /* В светлой теме elevation — мягкие тени, M3 spec, чуть тоньше дефолта. */
+  --md-elev-1: 0 1px 2px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --md-elev-2: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.08);
+  --md-elev-3: 0 2px 6px rgba(0, 0, 0, 0.10), 0 8px 16px rgba(0, 0, 0, 0.10);
+}
+
+:root {
+
   /* Радиусы — M3 shape scale. */
   --md-radius-xs: 4px;
   --md-radius-sm: 8px;
@@ -43,10 +96,7 @@
   --md-radius-xl: 28px;
   --md-radius-full: 9999px;
 
-  /* Elevations через тонкие тени. */
-  --md-elev-1: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
-  --md-elev-2: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15);
-  --md-elev-3: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.3);
+  /* Elevations определены per-theme выше. */
 
   /* State layer opacity. */
   --md-state-hover: 0.08;
@@ -121,6 +171,26 @@ header h1 {
   margin-left: 4px;
   vertical-align: middle;
 }
+
+.theme-toggle {
+  margin-left: auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 120ms, color 120ms;
+}
+.theme-toggle:hover {
+  background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+  color: var(--md-on-surface);
+}
+.theme-toggle .material-symbols-outlined { font-size: 22px; }
 
 /* --- device cards --- */
 
