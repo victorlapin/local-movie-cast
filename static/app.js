@@ -437,7 +437,7 @@ els.castBtn.onclick = async () => {
     alert(`Не удалось: ${e.message}`);
   } finally {
     els.castBtn.disabled = false;
-    if (label) label.textContent = "Кастить";
+    if (label) label.textContent = "Транслировать";
   }
 };
 
