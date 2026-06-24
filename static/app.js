@@ -16,6 +16,8 @@ const els = {
   folders: document.getElementById("folders"),
   files: document.getElementById("files"),
   empty: document.getElementById("empty"),
+  recentSection: document.getElementById("recent-section"),
+  recent: document.getElementById("recent"),
   fileTitle: document.getElementById("file-title"),
   fileMeta: document.getElementById("file-meta"),
   tracksTitle: document.querySelector(".tracks-title"),
@@ -180,6 +182,50 @@ async function loadDir(path) {
   state.currentPath = path;
   const data = await api("GET", `/api/browse?path=${encodeURIComponent(path)}`);
   renderListing(data);
+  if (!path) loadRecent();
+  else els.recentSection.hidden = true;
+}
+
+async function loadRecent() {
+  try {
+    const items = await api("GET", "/api/recent");
+    renderRecent(items);
+  } catch {
+    els.recentSection.hidden = true;
+  }
+}
+
+function renderRecent(items) {
+  els.recent.innerHTML = "";
+  if (!items.length) { els.recentSection.hidden = true; return; }
+  els.recentSection.hidden = false;
+  for (const it of items) {
+    const tile = document.createElement("div");
+    tile.className = "recent-tile";
+    tile.title = it.name;
+    tile.innerHTML = `
+      <div class="thumb"><img loading="lazy" alt="" src="/api/thumb?path=${encodeURIComponent(it.path)}"></div>
+      <div class="caption">${escapeHtml(stripExt(it.name))}</div>
+    `;
+    tile.onclick = () => castRecent(it);
+    els.recent.appendChild(tile);
+  }
+}
+
+async function castRecent(item) {
+  if (!state.activeDeviceUuid) {
+    alert("Сначала выбери устройство");
+    return;
+  }
+  try {
+    await api("POST", "/api/cast", {
+      device_uuid: state.activeDeviceUuid,
+      path: item.path,
+      audio_index: item.audio_index ?? 0,
+    });
+  } catch (e) {
+    alert(`Не удалось: ${e.message}`);
+  }
 }
 
 function renderCrumbs(currentPath) {
@@ -318,6 +364,7 @@ els.castBtn.onclick = async () => {
       path: state.selectedFile.path,
       audio_index: state.selectedAudio,
     });
+    if (!state.currentPath) loadRecent();
   } catch (e) {
     alert(`Не удалось: ${e.message}`);
   } finally {

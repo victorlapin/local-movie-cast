@@ -19,6 +19,7 @@ from pydantic import BaseModel
 import power
 from caster import CastManager
 from config import PROJECT_ROOT, load_config
+from recents import Recents
 from streamer import OUTPUT_MIME, StreamSession, Streamer
 from thumber import Thumber
 
@@ -36,6 +37,7 @@ class AppState:
     streamer: Optional[Streamer] = None
     cast_manager: Optional[CastManager] = None
     thumber: Optional[Thumber] = None
+    recents: Optional[Recents] = None
     # device_uuid -> StreamSession
     sessions_by_device: dict[str, StreamSession] = {}
     # token -> (device_uuid, StreamSession)
@@ -52,6 +54,7 @@ async def lifespan(app: FastAPI):
     state.config = load_config()
     state.streamer = Streamer(state.config)
     state.thumber = Thumber(state.config)
+    state.recents = Recents()
     state.cast_manager = CastManager()
     state.cast_manager.attach_loop(asyncio.get_event_loop())
     await asyncio.to_thread(state.cast_manager.discover, 5.0)
@@ -190,6 +193,31 @@ async def api_tracks(path: str) -> dict:
     }
 
 
+# --- /api/recent -------------------------------------------------------------
+
+@app.get("/api/recent")
+async def api_recent() -> list[dict]:
+    items = state.recents.list()
+    out: list[dict] = []
+    for item in items:
+        rel = item.get("path", "")
+        try:
+            abs_path = _resolve_under_root(rel)
+        except HTTPException:
+            continue
+        if not abs_path.exists() or not abs_path.is_file():
+            # файл удалён или перемещён — почистим за собой
+            state.recents.remove(rel)
+            continue
+        out.append({
+            "path": rel,
+            "name": abs_path.name,
+            "audio_index": item.get("audio_index", 0),
+            "added_at": item.get("added_at"),
+        })
+    return out
+
+
 # --- /api/thumb --------------------------------------------------------------
 
 @app.get("/api/thumb")
@@ -254,6 +282,7 @@ async def api_cast(req: CastRequest) -> dict:
         raise HTTPException(status_code=500, detail=f"Cast failed: {e}")
 
     power.acquire(token)
+    state.recents.add(req.path, req.audio_index)
     return {"token": token, "url": url, "mode": session.mode, "duration": session.duration}
 
 
