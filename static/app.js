@@ -21,6 +21,11 @@ const els = {
   recent: document.getElementById("recent"),
   librariesSection: document.getElementById("libraries-section"),
   libraries: document.getElementById("libraries"),
+  searchInput: document.getElementById("search-input"),
+  searchClear: document.getElementById("search-clear"),
+  searchSection: document.getElementById("search-section"),
+  searchStatus: document.getElementById("search-status"),
+  searchResults: document.getElementById("search-results"),
   fileTitle: document.getElementById("file-title"),
   fileMeta: document.getElementById("file-meta"),
   tracksTitle: document.querySelector(".tracks-title"),
@@ -216,6 +221,90 @@ async function stopDevice(uuid) {
 async function controlDevice(uuid, action) {
   try { await api("POST", "/api/control", { device_uuid: uuid, action }); }
   catch (e) { showDialog(e.message, "error"); }
+}
+
+// --- search -----------------------------------------------------------------
+
+let _searchDebounce = null;
+let _searchSeq = 0;
+
+els.searchInput.addEventListener("input", () => {
+  els.searchClear.hidden = !els.searchInput.value;
+  if (_searchDebounce) clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(runSearch, 200);
+});
+
+els.searchClear.onclick = () => {
+  els.searchInput.value = "";
+  els.searchClear.hidden = true;
+  exitSearch();
+  els.searchInput.focus();
+};
+
+async function runSearch() {
+  const q = els.searchInput.value.trim();
+  if (!q) { exitSearch(); return; }
+  const mySeq = ++_searchSeq;
+  try {
+    const data = await api("GET", `/api/search?q=${encodeURIComponent(q)}`);
+    if (mySeq !== _searchSeq) return; // пришёл устаревший ответ — игнорируем
+    renderSearch(q, data);
+  } catch (e) {
+    if (mySeq !== _searchSeq) return;
+    els.searchStatus.textContent = "Ошибка: " + e.message;
+    els.searchResults.innerHTML = "";
+    els.searchSection.hidden = false;
+    hideBrowseSections();
+  }
+}
+
+function hideBrowseSections() {
+  els.recentSection.hidden = true;
+  els.librariesSection.hidden = true;
+  els.folders.style.display = "none";
+  els.folders.innerHTML = "";
+  els.files.innerHTML = "";
+  els.empty.hidden = true;
+  document.querySelector(".browser-bar").style.display = "none";
+}
+
+function showBrowseSections() {
+  document.querySelector(".browser-bar").style.display = "";
+}
+
+function exitSearch() {
+  _searchSeq++;
+  els.searchSection.hidden = true;
+  showBrowseSections();
+  if (state.lastListing) renderListing(state.lastListing);
+  if (!state.currentPath) loadRecent();
+}
+
+function renderSearch(query, data) {
+  hideBrowseSections();
+  els.searchSection.hidden = false;
+  const limited = data.limited ? " (показано первые " + data.total + ")" : "";
+  if (data.total === 0) {
+    els.searchStatus.textContent = `Ничего не найдено по «${query}»`;
+  } else {
+    els.searchStatus.textContent = `Найдено ${data.total}${limited}`;
+  }
+  els.searchResults.innerHTML = "";
+  // Применим режим из view-toggle и сортировку.
+  els.searchResults.dataset.view = els.files.dataset.view || "grid";
+  for (const f of sortFiles(data.results)) {
+    const tile = makeTile(f);
+    // Подпишем папку, чтобы понятно, где файл лежит.
+    if (f.dir) {
+      const caption = tile.querySelector(".caption");
+      const sub = document.createElement("span");
+      sub.className = "tile-subdir";
+      sub.textContent = f.dir;
+      caption.insertBefore(sub, caption.firstChild);
+    }
+    els.searchResults.appendChild(tile);
+  }
+  refreshCastingHighlights();
 }
 
 // --- browser ----------------------------------------------------------------

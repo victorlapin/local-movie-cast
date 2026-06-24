@@ -29,6 +29,13 @@
 
   <main>
     <section class="browser">
+      <div class="search-bar">
+        <span class="material-symbols-outlined search-icon">search</span>
+        <input id="search-input" class="search-input" type="search" placeholder="Поиск по библиотекам" autocomplete="off">
+        <button id="search-clear" class="search-clear" title="Очистить" hidden>
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
       <div class="browser-bar">
         <div class="crumbs" id="crumbs"></div>
         <div class="browser-controls">
@@ -61,6 +68,10 @@
       <div id="folders" class="folders"></div>
       <div id="files" class="files"></div>
       <div id="empty" class="empty" hidden>Пусто</div>
+      <section id="search-section" class="search-section" hidden>
+        <h2 class="section-title" id="search-status"></h2>
+        <div id="search-results" class="files"></div>
+      </section>
     </section>
 
     <div class="sheet-backdrop" id="sheet-backdrop"></div>

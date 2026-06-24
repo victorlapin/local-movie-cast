@@ -278,6 +278,58 @@ async def api_browse(path: str = "") -> dict:
     }
 
 
+# --- /api/search -------------------------------------------------------------
+
+_SEARCH_LIMIT = 200
+
+
+@app.get("/api/search")
+async def api_search(q: str) -> dict:
+    query = (q or "").strip().lower()
+    if not query:
+        return {"results": [], "total": 0, "limited": False}
+
+    video_exts = set(state.config.video_extensions)
+    libs = state.config.libraries()
+
+    def _walk() -> tuple[list[dict], bool]:
+        out: list[dict] = []
+        limited = False
+        for lib_id, root in libs.items():
+            for current, subdirs, names in os.walk(root, followlinks=False):
+                # Скрытые директории убираем in-place — os.walk не пойдёт туда.
+                subdirs[:] = [d for d in subdirs if not _is_hidden(Path(current) / d)]
+                for name in names:
+                    if query not in name.lower():
+                        continue
+                    p = Path(current) / name
+                    if p.suffix.lower() not in video_exts:
+                        continue
+                    if _is_hidden(p):
+                        continue
+                    size = mtime = None
+                    try:
+                        st = p.stat()
+                        size = st.st_size
+                        mtime = st.st_mtime
+                    except OSError:
+                        pass
+                    out.append({
+                        "name": name,
+                        "path": _relpath(p, lib_id, root),
+                        "size": size,
+                        "mtime": mtime,
+                        "dir": _relpath(p.parent, lib_id, root),
+                    })
+                    if len(out) >= _SEARCH_LIMIT:
+                        limited = True
+                        return out, limited
+        return out, limited
+
+    results, limited = await asyncio.to_thread(_walk)
+    return {"results": results, "total": len(results), "limited": limited}
+
+
 # --- /api/tracks -------------------------------------------------------------
 
 @app.get("/api/tracks")
