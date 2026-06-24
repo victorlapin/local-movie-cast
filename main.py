@@ -46,6 +46,10 @@ logger = logging.getLogger("local-movie-cast")
 logger.info("local-movie-cast v%s starting", VERSION)
 logger.info("PROJECT_ROOT = %s (frozen=%s)", PROJECT_ROOT, getattr(sys, "frozen", False))
 
+# Если автозапуск был включён, но папку с портаблом перенесли — обновим путь.
+import autostart  # noqa: E402  (импорт зависит от sys-фиксов выше)
+autostart.refresh_path_if_enabled()
+
 
 # --- состояние процесса ------------------------------------------------------
 

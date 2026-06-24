@@ -15,6 +15,7 @@ from typing import Callable
 import pystray
 from PIL import Image, ImageDraw
 
+import autostart
 from version import VERSION
 
 logger = logging.getLogger(__name__)
@@ -55,9 +56,21 @@ def start_tray(
             logger.exception("quit callback failed")
         icon.stop()
 
+    def _toggle_autostart(_icon, _item):
+        if autostart.is_enabled():
+            autostart.disable()
+        else:
+            autostart.enable()
+
     menu = pystray.Menu(
         pystray.MenuItem("Открыть интерфейс", _open_ui),
         pystray.MenuItem("Остановить все трансляции", _stop_all),
+        pystray.MenuItem(
+            "Запускать с Windows",
+            _toggle_autostart,
+            checked=lambda _item: autostart.is_enabled(),
+            enabled=autostart.is_supported(),
+        ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Выход", _quit),
     )
