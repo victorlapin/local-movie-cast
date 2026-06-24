@@ -15,10 +15,14 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+import sys
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, Optional
+
+# На Windows прячем консольное окно дочернего процесса. На прочих ОС — 0.
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 from config import Config
 
@@ -90,7 +94,7 @@ class Streamer:
             str(path),
         ]
         logger.debug("ffprobe: %s", cmd)
-        result = subprocess.run(cmd, capture_output=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, check=True, creationflags=_NO_WINDOW)
         data = json.loads(result.stdout.decode("utf-8", errors="replace"))
 
         duration = float(data.get("format", {}).get("duration", 0) or 0)
@@ -238,6 +242,7 @@ class Streamer:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=0,
+            creationflags=_NO_WINDOW,
         )
         session.process = proc
 

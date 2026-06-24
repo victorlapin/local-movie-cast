@@ -13,9 +13,12 @@ import hashlib
 import json
 import logging
 import subprocess
+import sys
 import threading
 from pathlib import Path
 from typing import Optional
+
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
 from config import PROJECT_ROOT, Config
 
@@ -52,7 +55,7 @@ class Thumber:
             "-print_format", "json",
             str(path),
         ]
-        result = subprocess.run(cmd, capture_output=True, check=True)
+        result = subprocess.run(cmd, capture_output=True, check=True, creationflags=_NO_WINDOW)
         data = json.loads(result.stdout.decode("utf-8", errors="replace"))
         return float(data.get("format", {}).get("duration", 0) or 0)
 
@@ -99,7 +102,7 @@ class Thumber:
                 str(tmp),
             ]
             try:
-                subprocess.run(cmd, capture_output=True, check=True, timeout=30)
+                subprocess.run(cmd, capture_output=True, check=True, timeout=30, creationflags=_NO_WINDOW)
             except subprocess.CalledProcessError as e:
                 logger.warning("thumb: ffmpeg упал на %s: %s", path, e.stderr.decode("utf-8", "replace")[:200])
                 tmp.unlink(missing_ok=True)
