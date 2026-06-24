@@ -74,12 +74,14 @@ class Thumber:
             return None
         cache = self._cache_path(path)
         if cache.exists():
+            logger.debug("thumb hit: %s -> %s", path.name, cache)
             return cache
 
         lock = self._lock_for(cache.name)
         with lock:
             if cache.exists():
                 return cache
+            logger.info("thumb miss: %s -> %s", path.name, cache)
             try:
                 duration = self._probe_duration(path)
             except Exception:
@@ -115,5 +117,9 @@ class Thumber:
             if not tmp.exists() or tmp.stat().st_size == 0:
                 tmp.unlink(missing_ok=True)
                 return None
-            tmp.replace(cache)
+            try:
+                tmp.replace(cache)
+            except OSError:
+                logger.exception("thumb: не удалось переименовать %s -> %s", tmp, cache)
+                return None
             return cache

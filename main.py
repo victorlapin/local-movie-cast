@@ -41,6 +41,7 @@ from logging_setup import setup_logging
 
 setup_logging()
 logger = logging.getLogger("local-movie-cast")
+logger.info("PROJECT_ROOT = %s (frozen=%s)", PROJECT_ROOT, getattr(sys, "frozen", False))
 
 
 # --- состояние процесса ------------------------------------------------------
@@ -259,10 +260,14 @@ async def api_thumb(path: str):
     thumb = await asyncio.to_thread(state.thumber.get_or_make, file_path)
     if thumb is None:
         raise HTTPException(status_code=500, detail="Не удалось сгенерировать миниатюру")
+    # no-cache: браузер кэширует, но переспрашивает сервер каждый раз;
+    # FileResponse шлёт ETag/Last-Modified, неизменный файл возвращается как
+    # 304 без байт. Это даёт «кэш по содержимому» — при чистой установке
+    # картинки гарантированно регенерируются и сразу видно поведение.
     return FileResponse(
         thumb,
         media_type="image/jpeg",
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={"Cache-Control": "no-cache"},
     )
 
 

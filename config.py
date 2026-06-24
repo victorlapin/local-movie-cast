@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 def _app_dir() -> Path:
     """Корень установки. В frozen-режиме (PyInstaller) — рядом с .exe,
     иначе — рядом с этим файлом. Используется для config.yaml, bin/, .cache/."""
-    if getattr(sys, "frozen", False):
+    if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent
 
