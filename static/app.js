@@ -70,7 +70,11 @@ function stripExt(name) {
 
 // --- devices ----------------------------------------------------------------
 
-const DEVICE_ICONS = { cast: "📺", audio: "🔊", group: "🔊" };
+const DEVICE_ICONS = { cast: "cast", audio: "speaker", group: "speaker_group" };
+
+function mi(name) {
+  return `<span class="material-symbols-outlined">${name}</span>`;
+}
 const TYPE_ORDER = { cast: 0, group: 1, audio: 2 };
 
 function sortedDevices() {
@@ -89,7 +93,7 @@ function deviceStatusHtml(d) {
       ? ` · ${fmtTime(d.position)} / ${fmtTime(d.duration)}`
       : "";
     const fname = d.our_file.split("/").pop();
-    return `▶ ${escapeHtml(fname)} ${mode}${pos}`;
+    return `${escapeHtml(fname)} ${mode}${pos}`;
   }
   if (d.app && d.app !== "Backdrop" && d.app !== "Default Media Receiver") {
     return `Занят: ${escapeHtml(d.app)}`;
@@ -113,11 +117,11 @@ function renderDevices() {
       tab.classList.add("other-app");
     }
 
-    const icon = DEVICE_ICONS[d.cast_type] || "📺";
+    const iconName = DEVICE_ICONS[d.cast_type] || "cast";
 
     const head = `<div class="dev-head">
       <span class="dot"></span>
-      <span class="icon">${icon}</span>
+      <span class="icon">${mi(iconName)}</span>
       <span class="name">${escapeHtml(d.name)}</span>
     </div>`;
     const model = `<div class="dev-model">${escapeHtml(d.model || d.cast_type || "")}</div>`;
@@ -126,13 +130,13 @@ function renderDevices() {
     let controls = "";
     if (d.our_file) {
       const playing = (d.state || "").toUpperCase() === "PLAYING";
-      const playBtnLabel = playing ? "⏸" : "▶";
+      const playBtnIcon = playing ? "pause" : "play_arrow";
       const playBtnTitle = playing ? "Пауза" : "Играть";
       const playBtnAction = playing ? "pause" : "play";
       controls = `
         <div class="dev-controls">
-          <button class="dev-play" data-action="${playBtnAction}" title="${playBtnTitle}">${playBtnLabel}</button>
-          <button class="dev-stop" title="Остановить">×</button>
+          <button class="dev-play" data-action="${playBtnAction}" title="${playBtnTitle}">${mi(playBtnIcon)}</button>
+          <button class="dev-stop" title="Остановить">${mi("close")}</button>
         </div>`;
     }
 
@@ -205,7 +209,7 @@ function renderListing(data) {
   if (data.parent != null) {
     const up = document.createElement("div");
     up.className = "folder up";
-    up.innerHTML = `<span class="icon">↑</span><span>..</span>`;
+    up.innerHTML = `<span class="icon">${mi("arrow_upward")}</span><span>..</span>`;
     up.onclick = () => loadDir(data.parent);
     els.folders.appendChild(up);
   }
@@ -213,7 +217,7 @@ function renderListing(data) {
     const div = document.createElement("div");
     div.className = "folder";
     div.title = d.name;
-    div.innerHTML = `<span class="icon">📁</span><span>${escapeHtml(d.name)}</span>`;
+    div.innerHTML = `<span class="icon">${mi("folder")}</span><span>${escapeHtml(d.name)}</span>`;
     div.onclick = () => loadDir(d.path);
     els.folders.appendChild(div);
   }
@@ -239,7 +243,7 @@ function makeTile(f) {
   img.loading = "lazy";
   img.alt = "";
   img.onload = () => thumb.classList.remove("loading");
-  img.onerror = () => { thumb.classList.remove("loading"); thumb.textContent = "🎬"; img.remove(); };
+  img.onerror = () => { thumb.classList.remove("loading"); thumb.innerHTML = mi("movie"); img.remove(); };
   img.src = `/api/thumb?path=${encodeURIComponent(f.path)}`;
   thumb.appendChild(img);
 
