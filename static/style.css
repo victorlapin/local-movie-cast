@@ -1226,8 +1226,21 @@ main {
 /* Очень узкие экраны (телефоны в портрете) — ещё компактнее */
 @media (max-width: 420px) {
   .device-tab { min-width: 160px; }
-  .files, .folders {
+  .files, .folders, .libraries {
     grid-template-columns: repeat(2, 1fr);
   }
   .recent-tile { flex: 0 0 120px; }
+  .library-card { padding: 16px 12px; }
+  .library-card .icon { font-size: 26px; }
+}
+
+@media (max-width: 768px) {
+  .libraries {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  /* Кнопки в модалках растягиваем в ряд поровну, чтобы ничего не вылезало. */
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+  .modal-actions > * { flex: 1; min-width: 0; }
 }
