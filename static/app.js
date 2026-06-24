@@ -180,10 +180,23 @@ async function controlDevice(uuid, action) {
 
 async function loadDir(path) {
   state.currentPath = path;
+  clearSelection();
   const data = await api("GET", `/api/browse?path=${encodeURIComponent(path)}`);
   renderListing(data);
   if (!path) loadRecent();
   else els.recentSection.hidden = true;
+}
+
+function clearSelection() {
+  state.selectedFile = null;
+  state.selectedTileEl = null;
+  state.tracks = [];
+  state.selectedAudio = 0;
+  els.fileTitle.textContent = "Выбери файл";
+  els.fileMeta.textContent = "";
+  els.tracks.innerHTML = "";
+  els.tracksTitle.hidden = true;
+  refreshCastButton();
 }
 
 async function loadRecent() {
@@ -356,8 +369,9 @@ function refreshCastButton() {
 
 els.castBtn.onclick = async () => {
   if (!state.selectedFile || !state.activeDeviceUuid) return;
+  const label = els.castBtn.querySelector(".cast-label");
   els.castBtn.disabled = true;
-  els.castBtn.textContent = "Запускаю…";
+  if (label) label.textContent = "Запускаю…";
   try {
     await api("POST", "/api/cast", {
       device_uuid: state.activeDeviceUuid,
@@ -369,7 +383,7 @@ els.castBtn.onclick = async () => {
     alert(`Не удалось: ${e.message}`);
   } finally {
     els.castBtn.disabled = false;
-    els.castBtn.textContent = "Кастить";
+    if (label) label.textContent = "Кастить";
   }
 };
 

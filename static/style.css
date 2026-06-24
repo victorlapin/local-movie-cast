@@ -555,31 +555,49 @@ main {
   color: color-mix(in srgb, var(--md-on-secondary-container) 80%, transparent);
 }
 
-/* --- filled button (cast) --- */
+/* --- filled button (cast) — акцентная, поярче чем primary --- */
 
 .cast-btn {
+  /* Свой акцент — насыщенный mint, контрастный к синей primary темы. */
+  --cast-bg: #5ae0a0;
+  --cast-fg: #003822;
+  --cast-bg-hover: #7ef0b9;
+
   padding: 0 24px;
-  height: 40px;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.071em;
+  height: 48px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   border-radius: var(--md-radius-full);
   border: none;
   cursor: pointer;
-  background: var(--md-primary);
-  color: var(--md-on-primary);
-  transition: background-color 120ms, box-shadow 120ms;
+  background: var(--cast-bg);
+  color: var(--cast-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: var(--md-elev-2), 0 0 0 1px rgba(90, 224, 160, 0.25);
+  transition: background-color 120ms, box-shadow 120ms, transform 60ms;
+}
+
+.cast-btn .material-symbols-outlined {
+  font-size: 20px;
+  font-variation-settings: "FILL" 1;
 }
 
 .cast-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--md-on-primary) 8%, var(--md-primary));
-  box-shadow: var(--md-elev-1);
+  background: var(--cast-bg-hover);
+  box-shadow: var(--md-elev-3), 0 0 16px rgba(90, 224, 160, 0.35);
 }
+
+.cast-btn:active:not(:disabled) { transform: translateY(1px); }
 
 .cast-btn:disabled {
   background: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
   color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* --- scrollbars (Webkit, неинтрузивные) --- */
