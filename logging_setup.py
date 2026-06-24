@@ -46,3 +46,8 @@ def setup_logging(level: int = logging.INFO) -> None:
         sh = logging.StreamHandler(sys.stderr)
         sh.setFormatter(fmt)
         root.addHandler(sh)
+
+    # PyChromecast'овский socket_client любит логировать ERROR на каждом
+    # сетевом икотке (retry, disconnect, etc.) — нам это не actionable.
+    # Приглушаем до WARNING, чтобы не засорять лог.
+    logging.getLogger("pychromecast.socket_client").setLevel(logging.WARNING)
