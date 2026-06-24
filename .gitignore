@@ -4,6 +4,12 @@ bin/
 # Сгенерированный кэш (миниатюры и т.п.)
 .cache/
 
+# PyInstaller сборка
+build/
+dist/
+app.ico
+*.spec.bak
+
 # Python
 .venv/
 __pycache__/

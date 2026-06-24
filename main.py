@@ -1,6 +1,17 @@
 """FastAPI приложение local-movie-cast."""
 from __future__ import annotations
 
+import os
+import sys
+
+# В PyInstaller --windowed sys.stdout/sys.stderr могут быть None.
+# Любая библиотека, которая дёргает stdout.isatty() (uvicorn для покраски логов
+# например), на этом падает. Подменяем на /dev/null до импорта зависимостей.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
 import asyncio
 import json
 import logging
@@ -15,8 +26,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-
-import os
 
 import yaml
 
@@ -544,9 +553,16 @@ if __name__ == "__main__":
         logger.warning("config.yaml отсутствует — стартую на дефолтном порту %d", port)
 
     config = uvicorn.Config(
-        "main:app",
+        # Передаём объект app напрямую — в PyInstaller-сборке нет модуля "main"
+        # для импорта по строке.
+        app,
         host="0.0.0.0",
         port=port,
+        # log_config=None — пусть uvicorn не пытается конфигурировать своё
+        # логирование (его дефолтный конфиг падает в --windowed, потому что
+        # ColourizedFormatter дёргает sys.stdout.isatty()). У нас своя
+        # настройка через setup_logging().
+        log_config=None,
         log_level="info",
         timeout_graceful_shutdown=2,
     )
@@ -564,7 +580,7 @@ if __name__ == "__main__":
         server.should_exit = True
 
     try:
-        start_tray(port=cfg.port, on_quit=_on_quit, on_stop_all=stop_all_casts)
+        start_tray(port=port, on_quit=_on_quit, on_stop_all=stop_all_casts)
     finally:
         server.should_exit = True
         server_thread.join(timeout=5)
