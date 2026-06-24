@@ -782,6 +782,8 @@ main {
 
   padding: 0 24px;
   height: 48px;
+  min-height: 48px;
+  flex-shrink: 0;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.05em;
