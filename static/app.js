@@ -469,9 +469,21 @@ function connectStatus() {
   };
 }
 
+// --- version ----------------------------------------------------------------
+
+async function loadVersion() {
+  try {
+    const r = await fetch("/api/version");
+    const data = await r.json();
+    const el = document.getElementById("app-version");
+    if (el && data.version) el.textContent = "v" + data.version;
+  } catch {}
+}
+
 // --- boot -------------------------------------------------------------------
 
 loadDir("").catch(e => {
   els.files.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message)}</div>`;
 });
 connectStatus();
+loadVersion();

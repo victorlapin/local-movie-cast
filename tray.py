@@ -15,6 +15,8 @@ from typing import Callable
 import pystray
 from PIL import Image, ImageDraw
 
+from version import VERSION
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +64,7 @@ def start_tray(
     icon = pystray.Icon(
         "local-movie-cast",
         icon=_make_icon(),
-        title=f"local-movie-cast (порт {port})",
+        title=f"local-movie-cast v{VERSION} (порт {port})",
         menu=menu,
     )
     icon.run()  # блокирует до icon.stop()

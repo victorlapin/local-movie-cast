@@ -28,6 +28,9 @@ async function loadInfo() {
 
     els.mediaRoot.value = info.default_media || "";
 
+    const vEl = document.getElementById("app-version");
+    if (vEl && info.version) vEl.textContent = "v" + info.version;
+
     els.hostIp.innerHTML = "";
     const list = info.interfaces.slice();
     // Поднимаем detected_ip в начало, если он есть в списке.

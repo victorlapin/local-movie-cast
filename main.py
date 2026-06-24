@@ -36,11 +36,13 @@ from config import PROJECT_ROOT, load_config
 from recents import Recents
 from streamer import OUTPUT_MIME, StreamSession, Streamer
 from thumber import Thumber
+from version import VERSION
 
 from logging_setup import setup_logging
 
 setup_logging()
 logger = logging.getLogger("local-movie-cast")
+logger.info("local-movie-cast v%s starting", VERSION)
 logger.info("PROJECT_ROOT = %s (frozen=%s)", PROJECT_ROOT, getattr(sys, "frozen", False))
 
 
@@ -445,12 +447,15 @@ async def stream(token: str, request: Request):
 
 # --- setup wizard ------------------------------------------------------------
 
+_ALWAYS_OPEN_API_PREFIXES = ("/api/setup", "/api/version")
+
+
 @app.middleware("http")
 async def require_config_for_api(request: Request, call_next):
-    """До завершения setup'а — все /api/* кроме /api/setup/* отдают 503."""
+    """До завершения setup'а — все /api/* кроме setup/version отдают 503."""
     if state.config is None:
         path = request.url.path
-        if path.startswith("/api/") and not path.startswith("/api/setup"):
+        if path.startswith("/api/") and not any(path.startswith(p) for p in _ALWAYS_OPEN_API_PREFIXES):
             return JSONResponse({"detail": "Setup required"}, status_code=503)
     return await call_next(request)
 
@@ -467,7 +472,13 @@ async def api_setup_info() -> dict:
         "default_media": default_media,
         "default_port": 8000,
         "configured": state.config is not None,
+        "version": VERSION,
     }
+
+
+@app.get("/api/version")
+async def api_version() -> dict:
+    return {"version": VERSION}
 
 
 _ALLOWED_ENCODERS = {"h264_nvenc", "h264_qsv", "h264_amf", "libx264"}

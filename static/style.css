@@ -113,6 +113,15 @@ header h1 {
   letter-spacing: 0;
 }
 
+.app-version {
+  font-size: 11px;
+  color: var(--md-on-surface-variant);
+  font-weight: 400;
+  letter-spacing: 0.045em;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
 /* --- device cards --- */
 
 .devices {
