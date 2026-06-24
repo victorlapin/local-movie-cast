@@ -590,3 +590,7 @@ if __name__ == "__main__":
     finally:
         server.should_exit = True
         server_thread.join(timeout=5)
+        # Жёстко выходим, чтобы не висеть из-за не-daemon потоков pychromecast
+        # / zeroconf, которые не отпускают сокеты и DLL — иначе .exe-процесс
+        # остаётся жить после закрытия трея, файлы dist/ нельзя удалить.
+        os._exit(0)
