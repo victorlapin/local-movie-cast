@@ -67,6 +67,35 @@ async function api(method, url, body) {
   return r.json();
 }
 
+// --- modal dialog -----------------------------------------------------------
+
+function showDialog(message, type) {
+  const modal = document.getElementById("modal");
+  if (!modal) { console.error(message); return; }
+  const t = type === "error" ? "error" : "info";
+  modal.className = "modal modal-" + t;
+  modal.querySelector(".modal-icon").textContent = t === "error" ? "error" : "info";
+  modal.querySelector(".modal-title").textContent = t === "error" ? "Ошибка" : "";
+  modal.querySelector(".modal-title").hidden = t !== "error";
+  modal.querySelector(".modal-message").textContent = message;
+  if (typeof modal.showModal === "function") {
+    if (!modal.open) modal.showModal();
+  } else {
+    modal.setAttribute("open", "");
+  }
+}
+
+(function initModal() {
+  const modal = document.getElementById("modal");
+  if (!modal) return;
+  document.getElementById("modal-ok").onclick = () => modal.close();
+  // Клик по бэкдропу (вне content) — закрываем.
+  modal.addEventListener("click", (ev) => {
+    const content = modal.querySelector(".modal-content");
+    if (content && !content.contains(ev.target)) modal.close();
+  });
+})();
+
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -179,12 +208,12 @@ function renderDevices() {
 
 async function stopDevice(uuid) {
   try { await api("POST", "/api/stop", { device_uuid: uuid }); }
-  catch (e) { alert(e.message); }
+  catch (e) { showDialog(e.message, "error"); }
 }
 
 async function controlDevice(uuid, action) {
   try { await api("POST", "/api/control", { device_uuid: uuid, action }); }
-  catch (e) { alert(e.message); }
+  catch (e) { showDialog(e.message, "error"); }
 }
 
 // --- browser ----------------------------------------------------------------
@@ -255,13 +284,13 @@ async function removeRecent(path) {
     await api("DELETE", `/api/recent?path=${encodeURIComponent(path)}`);
     await loadRecent();
   } catch (e) {
-    alert(e.message);
+    showDialog(e.message, "error");
   }
 }
 
 async function castRecent(item) {
   if (!state.activeDeviceUuid) {
-    alert("Сначала выбери устройство");
+    showDialog("Сначала выбери устройство");
     return;
   }
   try {
@@ -271,7 +300,7 @@ async function castRecent(item) {
       audio_index: item.audio_index ?? 0,
     });
   } catch (e) {
-    alert(`Не удалось: ${e.message}`);
+    showDialog(`Не удалось: ${e.message}`, "error");
   }
 }
 
@@ -518,7 +547,7 @@ async function doCast(startSeconds) {
     if (!state.currentPath) loadRecent();
     closeSheet();
   } catch (e) {
-    alert(`Не удалось: ${e.message}`);
+    showDialog(`Не удалось: ${e.message}`, "error");
   } finally {
     renderCastControls();
   }

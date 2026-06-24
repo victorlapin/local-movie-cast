@@ -900,6 +900,69 @@ main {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--md-outline); }
 
+/* --- modal dialog (M3 Basic Dialog) --- */
+
+.modal {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  border: none;
+  border-radius: var(--md-radius-xl);
+  padding: 0;
+  max-width: 480px;
+  width: calc(100% - 32px);
+  box-shadow: var(--md-elev-3);
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.modal .modal-icon {
+  font-size: 28px;
+  font-variation-settings: "FILL" 1;
+  color: var(--md-primary);
+  align-self: center;
+  margin-bottom: 12px;
+}
+.modal.modal-error .modal-icon { color: var(--md-error); }
+
+.modal-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0;
+  align-self: center;
+  text-align: center;
+  width: 100%;
+}
+
+.modal-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--md-on-surface-variant);
+  text-align: center;
+  width: 100%;
+}
+
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  gap: 8px;
+}
+
+#modal-ok { min-width: 100px; }
+
 /* --- bottom-sheet elements (visible only on mobile) --- */
 
 .sheet-backdrop, .sheet-handle, .sheet-close { display: none; }
