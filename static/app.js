@@ -222,6 +222,11 @@ async function controlDevice(uuid, action) {
 
 async function loadDir(path) {
   state.currentPath = path;
+  // Сохраняем путь в URL, чтобы F5/назад/вперёд работали корректно.
+  const targetHash = path ? "#" + encodeURIComponent(path) : "";
+  if (location.hash !== targetHash) {
+    history.pushState(null, "", location.pathname + targetHash);
+  }
   clearSelection();
   const data = await api("GET", `/api/browse?path=${encodeURIComponent(path)}`);
   state.lastListing = data;
@@ -229,6 +234,22 @@ async function loadDir(path) {
   if (!path) loadRecent();
   else els.recentSection.hidden = true;
 }
+
+function pathFromHash() {
+  const h = location.hash;
+  if (!h || h === "#") return "";
+  try {
+    return decodeURIComponent(h.slice(1));
+  } catch {
+    return "";
+  }
+}
+
+// Бэк/вперёд браузера или ручное изменение URL.
+window.addEventListener("hashchange", () => {
+  const p = pathFromHash();
+  if (p !== state.currentPath) loadDir(p).catch(() => {});
+});
 
 function clearSelection() {
   state.selectedFile = null;
@@ -771,7 +792,7 @@ async function loadVersion() {
 
 // --- boot -------------------------------------------------------------------
 
-loadDir("").catch(e => {
+loadDir(pathFromHash()).catch(e => {
   els.files.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message)}</div>`;
 });
 connectStatus();
