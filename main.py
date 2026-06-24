@@ -575,6 +575,10 @@ if __name__ == "__main__":
     while not server.started:
         time.sleep(0.05)
 
+    # автоматически открыть UI в браузере
+    import webbrowser
+    webbrowser.open(f"http://localhost:{port}")
+
     def _on_quit():
         logger.info("Quit из трея")
         server.should_exit = True
