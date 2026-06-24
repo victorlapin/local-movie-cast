@@ -772,6 +772,44 @@ main {
   color: color-mix(in srgb, var(--md-on-secondary-container) 80%, transparent);
 }
 
+/* --- cast controls — одна или две кнопки в сайдбаре --- */
+
+.cast-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cast-status-box {
+  padding: 12px 14px;
+  background: var(--md-tertiary-container);
+  color: var(--md-on-tertiary-container);
+  border-radius: var(--md-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cast-status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cast-status-line .material-symbols-outlined {
+  font-size: 18px;
+  font-variation-settings: "FILL" 1;
+}
+
+.cast-status-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  padding-left: 26px;
+  color: color-mix(in srgb, var(--md-on-tertiary-container) 80%, transparent);
+}
+
 /* --- filled button (cast) — акцентная, поярче чем primary --- */
 
 .cast-btn {
@@ -818,6 +856,38 @@ main {
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* --- outlined button (вспомогательная — "Сначала") --- */
+
+.cast-btn-outlined {
+  padding: 0 24px;
+  height: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  border-radius: var(--md-radius-full);
+  border: 1px solid var(--md-outline);
+  background: transparent;
+  color: var(--md-on-surface);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 120ms, border-color 120ms;
+}
+.cast-btn-outlined:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+  border-color: var(--md-on-surface);
+}
+.cast-btn-outlined:disabled {
+  color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
+  border-color: color-mix(in srgb, var(--md-on-surface) 12%, transparent);
+  cursor: not-allowed;
+}
+.cast-btn-outlined .material-symbols-outlined { font-size: 18px; }
 
 /* --- scrollbars (Webkit, неинтрузивные) --- */
 

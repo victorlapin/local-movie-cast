@@ -8,6 +8,7 @@ const state = {
   selectedTileEl: null,
   selectedAudio: 0,
   tracks: [],
+  savedPosition: null,       // секунд, если фильм был приостановлен
 };
 
 const els = {
@@ -22,7 +23,7 @@ const els = {
   fileMeta: document.getElementById("file-meta"),
   tracksTitle: document.querySelector(".tracks-title"),
   tracks: document.getElementById("tracks"),
-  castBtn: document.getElementById("cast-btn"),
+  castControls: document.getElementById("cast-controls"),
   sheetBackdrop: document.getElementById("sheet-backdrop"),
   sheetClose: document.getElementById("sheet-close"),
 };
@@ -156,6 +157,8 @@ function renderDevices() {
       state.activeDeviceUuid = d.uuid;
       renderDevices();
       refreshCastingHighlights();
+      syncSavedPositionFromDevices();
+      renderCastControls();
     };
     const stop = tab.querySelector(".dev-stop");
     if (stop) stop.onclick = (ev) => { ev.stopPropagation(); stopDevice(d.uuid); };
@@ -171,7 +174,7 @@ function renderDevices() {
     state.activeDeviceUuid = sortedDevices()[0].uuid;
     renderDevices();
   }
-  refreshCastButton();
+  renderCastControls();
 }
 
 async function stopDevice(uuid) {
@@ -200,11 +203,12 @@ function clearSelection() {
   state.selectedTileEl = null;
   state.tracks = [];
   state.selectedAudio = 0;
+  state.savedPosition = null;
   els.fileTitle.textContent = "Выбери файл";
   els.fileMeta.textContent = "";
   els.tracks.innerHTML = "";
   els.tracksTitle.hidden = true;
-  refreshCastButton();
+  renderCastControls();
 }
 
 async function loadRecent() {
@@ -376,6 +380,7 @@ function makeTile(f) {
 
 async function selectFile(f, tileEl) {
   state.selectedFile = f;
+  state.savedPosition = null;
   if (state.selectedTileEl) state.selectedTileEl.classList.remove("selected");
   tileEl.classList.add("selected");
   state.selectedTileEl = tileEl;
@@ -385,19 +390,23 @@ async function selectFile(f, tileEl) {
   els.fileMeta.textContent = "Читаю дорожки…";
   els.tracks.innerHTML = "";
   els.tracksTitle.hidden = true;
-  els.castBtn.disabled = true;
+  renderCastControls();
 
   try {
-    const data = await api("GET", `/api/tracks?path=${encodeURIComponent(f.path)}`);
+    const [data, posData] = await Promise.all([
+      api("GET", `/api/tracks?path=${encodeURIComponent(f.path)}`),
+      api("GET", `/api/position?path=${encodeURIComponent(f.path)}`).catch(() => ({ position: null })),
+    ]);
     state.tracks = data.tracks;
     state.selectedAudio = 0;
+    state.savedPosition = posData.position;
     const parts = [data.video_codec || "?"];
     if (data.width && data.height) parts.push(`${data.width}×${data.height}`);
     parts.push(fmtTime(data.duration));
     parts.push(`${data.tracks.length} аудиодорожек`);
     els.fileMeta.textContent = parts.join(" · ");
     renderTracks();
-    refreshCastButton();
+    renderCastControls();
   } catch (e) {
     els.fileMeta.textContent = `Ошибка: ${e.message}`;
   }
@@ -418,32 +427,102 @@ function renderTracks() {
   });
 }
 
-function refreshCastButton() {
-  els.castBtn.disabled = !(state.selectedFile && state.activeDeviceUuid && state.tracks.length > 0);
+function renderCastControls() {
+  const canCast = state.selectedFile && state.activeDeviceUuid && state.tracks.length > 0;
+  els.castControls.innerHTML = "";
+
+  if (!canCast) {
+    const btn = document.createElement("button");
+    btn.className = "cast-btn";
+    btn.disabled = true;
+    btn.innerHTML = `${mi("cast")}<span class="cast-label">Транслировать</span>`;
+    els.castControls.appendChild(btn);
+    return;
+  }
+
+  // Если выбранный файл сейчас играет — показываем компактный «now playing»
+  // блок вместо кнопок каста.
+  const castingDevice = state.devices.find(d => d.our_file === state.selectedFile.path);
+  if (castingDevice) {
+    const stateLower = (castingDevice.state || "").toLowerCase();
+    const icon = stateLower === "paused" ? "pause" : "play_arrow";
+    const pos = castingDevice.position != null ? fmtTime(castingDevice.position) : "—";
+    const dur = castingDevice.duration ? fmtTime(castingDevice.duration) : "—";
+    const verb = stateLower === "paused" ? "На паузе на" : "Транслируется на";
+
+    const box = document.createElement("div");
+    box.className = "cast-status-box";
+    box.innerHTML = `
+      <div class="cast-status-line">${mi(icon)}<span>${verb} ${escapeHtml(castingDevice.name)}</span></div>
+      <div class="cast-status-time">${pos} / ${dur}</div>
+    `;
+    els.castControls.appendChild(box);
+
+    const stop = document.createElement("button");
+    stop.className = "cast-btn-outlined";
+    stop.innerHTML = `${mi("stop")}<span class="cast-label">Остановить</span>`;
+    stop.onclick = () => stopDevice(castingDevice.uuid);
+    els.castControls.appendChild(stop);
+    return;
+  }
+
+  const pos = state.savedPosition;
+  if (pos && pos > 5) {
+    const resume = document.createElement("button");
+    resume.className = "cast-btn";
+    resume.innerHTML = `${mi("play_arrow")}<span class="cast-label">Продолжить с ${fmtTime(pos)}</span>`;
+    resume.onclick = () => doCast(pos);
+    els.castControls.appendChild(resume);
+
+    const restart = document.createElement("button");
+    restart.className = "cast-btn-outlined";
+    restart.innerHTML = `${mi("restart_alt")}<span class="cast-label">Сначала</span>`;
+    restart.onclick = () => doCast(0);
+    els.castControls.appendChild(restart);
+  } else {
+    const btn = document.createElement("button");
+    btn.className = "cast-btn";
+    btn.innerHTML = `${mi("cast")}<span class="cast-label">Транслировать</span>`;
+    btn.onclick = () => doCast(0);
+    els.castControls.appendChild(btn);
+  }
 }
 
-// --- cast / stop ------------------------------------------------------------
+function syncSavedPositionFromDevices() {
+  // Если выбранный файл сейчас играет, держим savedPosition синхронным с
+  // SSE-апдейтами — чтобы кнопка «Продолжить с …» (когда фильм будет
+  // остановлен) показывала свежее значение.
+  if (!state.selectedFile) return;
+  const dev = state.devices.find(d => d.our_file === state.selectedFile.path);
+  if (dev && dev.position != null && dev.position > 0) {
+    state.savedPosition = dev.position;
+  }
+}
 
-els.castBtn.onclick = async () => {
+async function doCast(startSeconds) {
   if (!state.selectedFile || !state.activeDeviceUuid) return;
-  const label = els.castBtn.querySelector(".cast-label");
-  els.castBtn.disabled = true;
-  if (label) label.textContent = "Запускаю…";
+  for (const b of els.castControls.querySelectorAll("button")) b.disabled = true;
   try {
+    // «Сначала» подразумевает очистку сохранённой позиции — иначе она перепишется
+    // в первые секунды от status-апдейтов до того, как фильм отыграет дальше.
+    if (startSeconds === 0 && state.savedPosition) {
+      await api("DELETE", `/api/position?path=${encodeURIComponent(state.selectedFile.path)}`).catch(() => {});
+      state.savedPosition = null;
+    }
     await api("POST", "/api/cast", {
       device_uuid: state.activeDeviceUuid,
       path: state.selectedFile.path,
       audio_index: state.selectedAudio,
+      start_seconds: startSeconds,
     });
     if (!state.currentPath) loadRecent();
     closeSheet();
   } catch (e) {
     alert(`Не удалось: ${e.message}`);
   } finally {
-    els.castBtn.disabled = false;
-    if (label) label.textContent = "Транслировать";
+    renderCastControls();
   }
-};
+}
 
 // --- SSE --------------------------------------------------------------------
 
@@ -456,6 +535,8 @@ function connectStatus() {
       state.devices = msg.devices;
       renderDevices();
       refreshCastingHighlights();
+      syncSavedPositionFromDevices();
+      renderCastControls();
     } else if (msg.type === "update") {
       const idx = state.devices.findIndex(d => d.uuid === msg.device.uuid);
       if (idx >= 0) {
@@ -465,6 +546,8 @@ function connectStatus() {
       }
       renderDevices();
       refreshCastingHighlights();
+      syncSavedPositionFromDevices();
+      renderCastControls();
     }
   };
   es.onerror = () => {

@@ -67,6 +67,7 @@ class ProbeResult:
 class StreamSession:
     token: str
     path: Path
+    rel_path: str             # путь, как пришёл от фронта (для positions / recents)
     audio_track: AudioTrack
     video_codec: str
     duration: float
@@ -145,6 +146,7 @@ class Streamer:
         token: str,
         path: Path,
         audio_index: int,
+        rel_path: str,
         probe: Optional[ProbeResult] = None,
     ) -> StreamSession:
         probe = probe or self.probe(path)
@@ -175,6 +177,7 @@ class Streamer:
         return StreamSession(
             token=token,
             path=path,
+            rel_path=rel_path,
             audio_track=track,
             video_codec=probe.video_codec,
             duration=probe.duration,

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import pychromecast
 import zeroconf
@@ -69,6 +69,13 @@ class CastManager:
         self._browser: Optional[CastBrowser] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._subscribers: set[asyncio.Queue] = set()
+        self._status_handler: Optional[Callable[[str], None]] = None
+
+    def set_status_handler(self, handler: Callable[[str], None]) -> None:
+        """Колбэк fires на каждый status-апдейт; uuid передаётся аргументом.
+        Вызывается из фоновых потоков PyChromecast, обработчик должен быть
+        thread-safe."""
+        self._status_handler = handler
 
     def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
@@ -114,7 +121,14 @@ class CastManager:
             raise KeyError(f"Устройство {uuid} не найдено")
         return self.devices[uuid]
 
-    def cast_url(self, uuid: str, url: str, mime_type: str, title: str | None = None) -> None:
+    def cast_url(
+        self,
+        uuid: str,
+        url: str,
+        mime_type: str,
+        title: str | None = None,
+        start_seconds: float = 0,
+    ) -> None:
         cc = self.get(uuid)
         # Убеждаемся, что socket_client готов (могло быть отложенно после discovery).
         try:
@@ -122,8 +136,12 @@ class CastManager:
         except Exception:
             logger.exception("cc.wait перед кастом упал на %s", cc.cast_info.friendly_name)
             raise
-        logger.info("Каст на %s: %s (%s)", cc.cast_info.friendly_name, url, mime_type)
-        cc.media_controller.play_media(url, mime_type, title=title)
+        kwargs: dict[str, Any] = {}
+        if start_seconds and start_seconds > 0:
+            kwargs["current_time"] = float(start_seconds)
+        logger.info("Каст на %s: %s (%s) start=%.1fs",
+                    cc.cast_info.friendly_name, url, mime_type, start_seconds)
+        cc.media_controller.play_media(url, mime_type, title=title, **kwargs)
         cc.media_controller.block_until_active(timeout=10)
 
     def pause(self, uuid: str) -> None:
@@ -190,7 +208,16 @@ class CastManager:
     # --- внутреннее ----------------------------------------------------------
 
     def _broadcast(self, uuid: str) -> None:
-        if uuid not in self.devices or self._loop is None:
+        if uuid not in self.devices:
+            return
+        # Колбэк дёргаем синхронно из этого же потока, чтобы запись позиции
+        # успевала до того, как SSE-подписчики что-то увидят.
+        if self._status_handler is not None:
+            try:
+                self._status_handler(uuid)
+            except Exception:
+                logger.exception("status_handler упал для %s", uuid)
+        if self._loop is None:
             return
         snap = _snapshot(self.devices[uuid])
         for q in list(self._subscribers):

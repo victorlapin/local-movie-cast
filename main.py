@@ -33,6 +33,7 @@ import net
 import power
 from caster import CastManager
 from config import PROJECT_ROOT, load_config
+from positions import Positions
 from recents import Recents
 from streamer import OUTPUT_MIME, StreamSession, Streamer
 from thumber import Thumber
@@ -54,6 +55,7 @@ class AppState:
     cast_manager: Optional[CastManager] = None
     thumber: Optional[Thumber] = None
     recents: Optional[Recents] = None
+    positions: Optional[Positions] = None
     # device_uuid -> StreamSession
     sessions_by_device: dict[str, StreamSession] = {}
     # token -> (device_uuid, StreamSession)
@@ -65,6 +67,31 @@ state = AppState()
 
 # --- lifespan ----------------------------------------------------------------
 
+def _on_device_status(uuid: str) -> None:
+    """Зовётся из CastManager._broadcast на каждом status-апдейте.
+    Сохраняем текущую позицию в positions.json, очищаем при просмотре до конца.
+    Вызывается из фоновых потоков PyChromecast."""
+    if state.positions is None or state.cast_manager is None:
+        return
+    sess = state.sessions_by_device.get(uuid)
+    if sess is None or not sess.rel_path:
+        return
+    cc = state.cast_manager.devices.get(uuid)
+    if cc is None:
+        return
+    ms = cc.media_controller.status
+    if ms is None or ms.current_time is None:
+        return
+    pos = float(ms.current_time)
+    if pos <= 0:
+        return
+    # Просмотрено до конца (за 30 сек до финала) — очищаем сохранённую позицию.
+    if sess.duration and pos > sess.duration - 30:
+        state.positions.remove(sess.rel_path)
+        return
+    state.positions.set(sess.rel_path, pos)
+
+
 async def _init_with_config() -> None:
     """Инициализация Streamer/Thumber/CastManager после того, как config есть.
     Вызывается из lifespan на старте и из /api/setup/save после первого
@@ -73,8 +100,10 @@ async def _init_with_config() -> None:
     state.streamer = Streamer(state.config)
     state.thumber = Thumber(state.config)
     state.recents = Recents()
+    state.positions = Positions()
     state.cast_manager = CastManager()
     state.cast_manager.attach_loop(asyncio.get_event_loop())
+    state.cast_manager.set_status_handler(_on_device_status)
     await asyncio.to_thread(state.cast_manager.discover, 5.0)
     logger.info("Готов: %d Chromecast(ов), порт %d, host_ip %s",
                 len(state.cast_manager.devices), state.config.port, state.config.host_ip)
@@ -254,6 +283,31 @@ async def api_recent() -> list[dict]:
     return out
 
 
+# --- /api/position -----------------------------------------------------------
+
+@app.get("/api/position")
+async def api_position_get(path: str) -> dict:
+    pos = state.positions.get(path)
+    if pos is None:
+        return {"position": None}
+    # Заодно чистим зомби — если файл перенесли/удалили, выкидываем запись.
+    try:
+        abs_path = _resolve_under_root(path)
+    except HTTPException:
+        state.positions.remove(path)
+        return {"position": None}
+    if not abs_path.exists() or not abs_path.is_file():
+        state.positions.remove(path)
+        return {"position": None}
+    return {"position": pos}
+
+
+@app.delete("/api/position")
+async def api_position_delete(path: str) -> dict:
+    state.positions.remove(path)
+    return {"ok": True}
+
+
 # --- /api/thumb --------------------------------------------------------------
 
 @app.get("/api/thumb")
@@ -281,6 +335,7 @@ class CastRequest(BaseModel):
     device_uuid: str
     path: str
     audio_index: int = 0
+    start_seconds: float = 0
 
 
 @app.post("/api/cast")
@@ -300,7 +355,7 @@ async def api_cast(req: CastRequest) -> dict:
     token = uuid.uuid4().hex
     try:
         session = await asyncio.to_thread(
-            state.streamer.make_session, token, file_path, req.audio_index
+            state.streamer.make_session, token, file_path, req.audio_index, req.path
         )
     except Exception as e:
         logger.exception("make_session упал")
@@ -312,7 +367,8 @@ async def api_cast(req: CastRequest) -> dict:
     url = f"http://{state.config.host_ip}:{state.config.port}/stream/{token}"
     try:
         await asyncio.to_thread(
-            state.cast_manager.cast_url, req.device_uuid, url, OUTPUT_MIME, session.title
+            state.cast_manager.cast_url,
+            req.device_uuid, url, OUTPUT_MIME, session.title, req.start_seconds,
         )
     except Exception as e:
         logger.exception("Каст не удался")
