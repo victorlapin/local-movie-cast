@@ -1,9 +1,9 @@
 """Системный трей через pystray.
 
 Запускается из main.py после старта uvicorn в фоне. Меню:
-- Open UI       — открыть веб-интерфейс в браузере
-- Stop all casts — остановить все активные касты на всех устройствах
-- Quit           — корректно завершить сервис
+- Открыть интерфейс           — открыть веб-интерфейс в браузере
+- Остановить все трансляции   — стоп всех активных кастов на всех устройствах
+- Выход                       — корректно завершить сервис
 """
 from __future__ import annotations
 
@@ -54,10 +54,10 @@ def start_tray(
         icon.stop()
 
     menu = pystray.Menu(
-        pystray.MenuItem("Open UI", _open_ui, default=True),
-        pystray.MenuItem("Stop all casts", _stop_all),
+        pystray.MenuItem("Открыть интерфейс", _open_ui),
+        pystray.MenuItem("Остановить все трансляции", _stop_all),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Quit", _quit),
+        pystray.MenuItem("Выход", _quit),
     )
     icon = pystray.Icon(
         "local-movie-cast",
