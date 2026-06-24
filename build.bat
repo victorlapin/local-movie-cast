@@ -35,7 +35,24 @@ if not exist "bin\ffmpeg.exe" (
     xcopy /E /I /Y "bin" "%TARGET%\bin" >nul
 )
 
-echo === [5/5] Done ===
-echo Portable bundle: %TARGET%
-echo Try: %TARGET%\local-movie-cast.exe
+echo === [5/6] Reading version ===
+for /f "delims=" %%v in ('uv run python -c "from version import VERSION; print(VERSION)"') do set "APP_VERSION=%%v"
+if "%APP_VERSION%"=="" set "APP_VERSION=dev"
+
+set "ZIP_NAME=local-movie-cast-v%APP_VERSION%.zip"
+set "ZIP_PATH=dist\%ZIP_NAME%"
+
+echo === [6/6] Packing into %ZIP_NAME% ===
+if exist "%ZIP_PATH%" del /q "%ZIP_PATH%"
+pushd dist
+"%SystemRoot%\System32\tar.exe" -a -cf "%ZIP_NAME%" "local-movie-cast"
+popd
+if errorlevel 1 (
+    echo Packing failed.
+    exit /b 1
+)
+
+echo Done.
+echo   Folder:  %TARGET%
+echo   Archive: %ZIP_PATH%
 endlocal
