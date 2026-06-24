@@ -23,7 +23,14 @@ const els = {
   tracksTitle: document.querySelector(".tracks-title"),
   tracks: document.getElementById("tracks"),
   castBtn: document.getElementById("cast-btn"),
+  sheetBackdrop: document.getElementById("sheet-backdrop"),
+  sheetClose: document.getElementById("sheet-close"),
 };
+
+function openSheet() { document.body.classList.add("sheet-open"); }
+function closeSheet() { document.body.classList.remove("sheet-open"); }
+els.sheetClose.onclick = closeSheet;
+els.sheetBackdrop.onclick = closeSheet;
 
 // --- helpers ----------------------------------------------------------------
 
@@ -372,6 +379,7 @@ async function selectFile(f, tileEl) {
   if (state.selectedTileEl) state.selectedTileEl.classList.remove("selected");
   tileEl.classList.add("selected");
   state.selectedTileEl = tileEl;
+  openSheet();
 
   els.fileTitle.textContent = stripExt(f.name);
   els.fileMeta.textContent = "Читаю дорожки…";
@@ -424,6 +432,7 @@ els.castBtn.onclick = async () => {
       audio_index: state.selectedAudio,
     });
     if (!state.currentPath) loadRecent();
+    closeSheet();
   } catch (e) {
     alert(`Не удалось: ${e.message}`);
   } finally {

@@ -666,3 +666,148 @@ main {
   border: 2px solid var(--md-surface);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--md-outline); }
+
+/* --- bottom-sheet elements (visible only on mobile) --- */
+
+.sheet-backdrop, .sheet-handle, .sheet-close { display: none; }
+
+/* --- mobile layout --- */
+
+@media (max-width: 768px) {
+  /* Возвращаем нативный document-scroll, чтобы работал pull-to-refresh. */
+  html, body { height: auto; }
+  body {
+    font-size: 14px;
+    overflow: auto;
+  }
+  main {
+    flex: none;
+    min-height: 0;
+  }
+  .browser {
+    overflow: visible;
+    flex: none;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+  header h1 { display: none; }
+
+  .devices {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 4px 12px;
+    margin: 0 -4px;
+    width: 100%;
+    scrollbar-width: thin;
+  }
+  .device-tab {
+    min-width: 180px;
+    flex-shrink: 0;
+    padding: 10px 12px;
+  }
+
+  main { flex-direction: column; }
+
+  .browser { padding: 12px 12px 16px; }
+
+  .folders {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .folder { padding: 10px 12px; font-size: 13px; }
+
+  .files {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .tile .caption { font-size: 12px; padding: 8px 10px 10px; }
+
+  .recent-tile { flex: 0 0 140px; }
+
+  /* Sidebar → bottom sheet */
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 75vh;
+    background: var(--md-surface-container);
+    border-top: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-radius-lg) var(--md-radius-lg) 0 0;
+    box-shadow: var(--md-elev-3);
+    transform: translateY(100%);
+    transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 20;
+    padding: 0 20px 24px;
+  }
+  body.sheet-open .sidebar { transform: translateY(0); }
+
+  .sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 15;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms;
+  }
+  body.sheet-open .sheet-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sheet-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--md-outline-variant);
+    border-radius: 2px;
+    margin: 10px auto 8px;
+  }
+
+  .sheet-close {
+    display: flex;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    color: var(--md-on-surface-variant);
+    border-radius: 50%;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .sheet-close:hover { background: color-mix(in srgb, var(--md-on-surface) 8%, transparent); }
+
+  .sidebar h2 {
+    padding-right: 40px;  /* место под крестик */
+    margin-top: 4px;
+  }
+
+  /* Cast button — full width on mobile */
+  .cast-btn { width: 100%; }
+}
+
+/* Очень узкие экраны (телефоны в портрете) — ещё компактнее */
+@media (max-width: 420px) {
+  .device-tab { min-width: 160px; }
+  .files, .folders {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .recent-tile { flex: 0 0 120px; }
+}
