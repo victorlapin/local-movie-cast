@@ -828,8 +828,13 @@ main {
     transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 20;
     padding: 0 20px 24px;
+    /* Не даём скроллу sheet'а перетекать на body позади. */
+    overscroll-behavior: contain;
   }
   body.sheet-open .sidebar { transform: translateY(0); }
+
+  /* Блокируем скролл body, пока sheet открыт. */
+  body.sheet-open { overflow: hidden; }
 
   .sheet-backdrop {
     display: block;
