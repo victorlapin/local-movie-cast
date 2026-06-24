@@ -57,6 +57,8 @@ class AudioTrack:
 class ProbeResult:
     duration: float
     video_codec: str
+    width: Optional[int]
+    height: Optional[int]
     audio_tracks: list[AudioTrack]
     container_bitrate: Optional[int]  # бит/с, если ffprobe смог посчитать
 
@@ -102,6 +104,8 @@ class Streamer:
         container_bitrate = int(container_bitrate_raw) if container_bitrate_raw else None
 
         video_codec = ""
+        width: Optional[int] = None
+        height: Optional[int] = None
         audio_tracks: list[AudioTrack] = []
         audio_counter = 0
 
@@ -109,6 +113,8 @@ class Streamer:
             ctype = stream.get("codec_type")
             if ctype == "video" and not video_codec:
                 video_codec = (stream.get("codec_name") or "").lower()
+                width = stream.get("width") or None
+                height = stream.get("height") or None
             elif ctype == "audio":
                 tags = stream.get("tags", {}) or {}
                 audio_tracks.append(
@@ -126,6 +132,8 @@ class Streamer:
         return ProbeResult(
             duration=duration,
             video_codec=video_codec,
+            width=width,
+            height=height,
             audio_tracks=audio_tracks,
             container_bitrate=container_bitrate,
         )

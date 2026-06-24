@@ -208,6 +208,8 @@ async def api_tracks(path: str) -> dict:
     return {
         "duration": probe.duration,
         "video_codec": probe.video_codec,
+        "width": probe.width,
+        "height": probe.height,
         "tracks": [
             {
                 "audio_index": t.audio_index,

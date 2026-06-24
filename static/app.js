@@ -391,7 +391,11 @@ async function selectFile(f, tileEl) {
     const data = await api("GET", `/api/tracks?path=${encodeURIComponent(f.path)}`);
     state.tracks = data.tracks;
     state.selectedAudio = 0;
-    els.fileMeta.textContent = `${data.video_codec || "?"} · ${fmtTime(data.duration)} · ${data.tracks.length} аудиодорожек`;
+    const parts = [data.video_codec || "?"];
+    if (data.width && data.height) parts.push(`${data.width}×${data.height}`);
+    parts.push(fmtTime(data.duration));
+    parts.push(`${data.tracks.length} аудиодорожек`);
+    els.fileMeta.textContent = parts.join(" · ");
     renderTracks();
     refreshCastButton();
   } catch (e) {
