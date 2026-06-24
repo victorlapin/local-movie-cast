@@ -100,6 +100,9 @@ class CastManager:
         for cc in list(self.devices.values()):
             try:
                 cc.disconnect()
+            except RuntimeError:
+                # socket-поток не успел стартовать — игнорируем
+                pass
             except Exception:
                 logger.exception("Ошибка disconnect %s", cc.cast_info.friendly_name)
         if self._browser is not None:
@@ -180,6 +183,10 @@ class CastManager:
             return
         try:
             cc = pychromecast.get_chromecast_from_cast_info(cast_info, self._zconf)
+            # cc.start() запускает socket-поток PyChromecast в фоне (не блокирует).
+            # Без него последующий cc.disconnect() падает с
+            # "cannot join thread before it is started".
+            cc.start()
         except Exception:
             logger.exception("Не удалось создать клиент для %s", cast_info.friendly_name)
             return
