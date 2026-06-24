@@ -148,6 +148,7 @@ function renderDevices() {
       if (ev.target.closest(".dev-controls")) return;
       state.activeDeviceUuid = d.uuid;
       renderDevices();
+      refreshCastingHighlights();
     };
     const stop = tab.querySelector(".dev-stop");
     if (stop) stop.onclick = (ev) => { ev.stopPropagation(); stopDevice(d.uuid); };
@@ -216,13 +217,18 @@ function renderRecent(items) {
     const tile = document.createElement("div");
     tile.className = "recent-tile";
     tile.title = it.name;
+    tile.dataset.path = it.path;
     tile.innerHTML = `
-      <div class="thumb"><img loading="lazy" alt="" src="/api/thumb?path=${encodeURIComponent(it.path)}"></div>
+      <div class="thumb">
+        <img loading="lazy" alt="" src="/api/thumb?path=${encodeURIComponent(it.path)}">
+        <span class="now-playing material-symbols-outlined">play_arrow</span>
+      </div>
       <div class="caption">${escapeHtml(stripExt(it.name))}</div>
     `;
     tile.onclick = () => castRecent(it);
     els.recent.appendChild(tile);
   }
+  refreshCastingHighlights();
 }
 
 async function castRecent(item) {
@@ -288,12 +294,29 @@ function renderListing(data) {
   }
 
   els.empty.hidden = !(data.dirs.length === 0 && data.files.length === 0 && data.parent == null);
+  refreshCastingHighlights();
+}
+
+function castingPaths() {
+  const set = new Set();
+  for (const d of state.devices) {
+    if (d.our_file) set.add(d.our_file);
+  }
+  return set;
+}
+
+function refreshCastingHighlights() {
+  const paths = castingPaths();
+  document.querySelectorAll(".tile[data-path], .recent-tile[data-path]").forEach(el => {
+    el.classList.toggle("casting", paths.has(el.dataset.path));
+  });
 }
 
 function makeTile(f) {
   const tile = document.createElement("div");
   tile.className = "tile";
   tile.title = f.name;
+  tile.dataset.path = f.path;
 
   const thumb = document.createElement("div");
   thumb.className = "thumb loading";
@@ -305,6 +328,11 @@ function makeTile(f) {
   img.onerror = () => { thumb.classList.remove("loading"); thumb.innerHTML = mi("movie"); img.remove(); };
   img.src = `/api/thumb?path=${encodeURIComponent(f.path)}`;
   thumb.appendChild(img);
+
+  const np = document.createElement("span");
+  np.className = "now-playing material-symbols-outlined";
+  np.textContent = "play_arrow";
+  thumb.appendChild(np);
 
   const caption = document.createElement("div");
   caption.className = "caption";
@@ -397,6 +425,7 @@ function connectStatus() {
     if (msg.type === "snapshot") {
       state.devices = msg.devices;
       renderDevices();
+      refreshCastingHighlights();
     } else if (msg.type === "update") {
       const idx = state.devices.findIndex(d => d.uuid === msg.device.uuid);
       if (idx >= 0) {
@@ -405,6 +434,7 @@ function connectStatus() {
         state.devices.push(msg.device);
       }
       renderDevices();
+      refreshCastingHighlights();
     }
   };
   es.onerror = () => {
