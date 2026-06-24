@@ -116,6 +116,12 @@ class CastManager:
 
     def cast_url(self, uuid: str, url: str, mime_type: str, title: str | None = None) -> None:
         cc = self.get(uuid)
+        # Убеждаемся, что socket_client готов (могло быть отложенно после discovery).
+        try:
+            cc.wait(timeout=15)
+        except Exception:
+            logger.exception("cc.wait перед кастом упал на %s", cc.cast_info.friendly_name)
+            raise
         logger.info("Каст на %s: %s (%s)", cc.cast_info.friendly_name, url, mime_type)
         cc.media_controller.play_media(url, mime_type, title=title)
         cc.media_controller.block_until_active(timeout=10)
@@ -156,10 +162,11 @@ class CastManager:
             return
         try:
             cc = pychromecast.get_chromecast_from_cast_info(cast_info, self._zconf)
-            cc.wait(timeout=5)
         except Exception:
-            logger.exception("Не удалось подключиться к %s", cast_info.friendly_name)
+            logger.exception("Не удалось создать клиент для %s", cast_info.friendly_name)
             return
+        # Регистрируем сразу, до завершения TCP-соединения. PyChromecast держит
+        # коннект в своём фоновом потоке; cc.wait() сделаем перед каст-командой.
         self.devices[uuid_str] = cc
         cc.media_controller.register_status_listener(_MediaListener(self, uuid_str))
         cc.register_status_listener(_CastListener(self, uuid_str))
