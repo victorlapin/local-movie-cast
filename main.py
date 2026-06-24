@@ -195,6 +195,12 @@ async def api_tracks(path: str) -> dict:
 
 # --- /api/recent -------------------------------------------------------------
 
+@app.delete("/api/recent")
+async def api_recent_delete(path: str) -> dict:
+    state.recents.remove(path)
+    return {"ok": True}
+
+
 @app.get("/api/recent")
 async def api_recent() -> list[dict]:
     items = state.recents.list()

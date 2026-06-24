@@ -222,13 +222,30 @@ function renderRecent(items) {
       <div class="thumb">
         <img loading="lazy" alt="" src="/api/thumb?path=${encodeURIComponent(it.path)}">
         <span class="now-playing material-symbols-outlined">play_arrow</span>
+        <button class="recent-remove" title="Убрать из недавнего">${mi("close")}</button>
       </div>
       <div class="caption">${escapeHtml(stripExt(it.name))}</div>
     `;
-    tile.onclick = () => castRecent(it);
+    tile.onclick = (ev) => {
+      if (ev.target.closest(".recent-remove")) return;
+      castRecent(it);
+    };
+    tile.querySelector(".recent-remove").onclick = async (ev) => {
+      ev.stopPropagation();
+      await removeRecent(it.path);
+    };
     els.recent.appendChild(tile);
   }
   refreshCastingHighlights();
+}
+
+async function removeRecent(path) {
+  try {
+    await api("DELETE", `/api/recent?path=${encodeURIComponent(path)}`);
+    await loadRecent();
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 async function castRecent(item) {
