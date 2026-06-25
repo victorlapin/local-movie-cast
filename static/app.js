@@ -115,6 +115,12 @@ function stripExt(name) {
   return i > 0 ? name.slice(0, i) : name;
 }
 
+// Каскадная задержка для stagger-анимации. Капаем на 12 элементах, чтобы
+// в длинных списках последние не появлялись через секунду.
+function staggerDelay(i) {
+  return Math.min(i, 12) * 25 + "ms";
+}
+
 // Вставляет zero-width space после _ . -, чтобы браузер мог переносить длинные
 // «From_Russia_with_love» по разделителям, а не одной кашей.
 function softBreaks(s) {
@@ -299,8 +305,10 @@ function renderSearch(query, data) {
   els.searchResults.innerHTML = "";
   // Применим режим из view-toggle и сортировку.
   els.searchResults.dataset.view = els.files.dataset.view || "grid";
+  let si = 0;
   for (const f of sortFiles(data.results)) {
     const tile = makeTile(f);
+    tile.style.animationDelay = staggerDelay(si++);
     // Подпишем папку, чтобы понятно, где файл лежит. lib_id из начала пути
     // убираем — для юзера это бессмысленный хэш.
     if (f.dir) {
@@ -388,9 +396,11 @@ function renderRecent(items) {
   els.recent.innerHTML = "";
   if (!items.length) { els.recentSection.hidden = true; return; }
   els.recentSection.hidden = false;
+  let ri = 0;
   for (const it of items) {
     const tile = document.createElement("div");
     tile.className = "recent-tile";
+    tile.style.animationDelay = staggerDelay(ri++);
     tile.title = it.name;
     tile.dataset.path = it.path;
     tile.innerHTML = `
@@ -459,9 +469,11 @@ function renderListing(data) {
   els.librariesSection.hidden = true;
 
   els.folders.innerHTML = "";
+  let fi = 0;
   if (data.parent != null) {
     const up = document.createElement("div");
     up.className = "folder up";
+    up.style.animationDelay = staggerDelay(fi++);
     up.innerHTML = `<span class="icon">${mi("arrow_upward")}</span><span>..</span>`;
     up.onclick = () => loadDir(data.parent);
     els.folders.appendChild(up);
@@ -469,6 +481,7 @@ function renderListing(data) {
   for (const d of data.dirs) {
     const div = document.createElement("div");
     div.className = "folder";
+    div.style.animationDelay = staggerDelay(fi++);
     div.title = d.name;
     div.innerHTML = `<span class="icon">${mi("folder")}</span><span>${escapeHtml(d.name)}</span>`;
     div.onclick = () => loadDir(d.path);
@@ -477,8 +490,11 @@ function renderListing(data) {
   els.folders.style.display = (data.dirs.length || data.parent != null) ? "" : "none";
 
   els.files.innerHTML = "";
+  let i = 0;
   for (const f of sortFiles(data.files)) {
-    els.files.appendChild(makeTile(f));
+    const tile = makeTile(f);
+    tile.style.animationDelay = staggerDelay(i++);
+    els.files.appendChild(tile);
   }
 
   els.empty.hidden = !(data.dirs.length === 0 && data.files.length === 0 && data.parent == null);
@@ -488,9 +504,11 @@ function renderListing(data) {
 function renderLibraries(libs) {
   els.librariesSection.hidden = false;
   els.libraries.innerHTML = "";
+  let li = 0;
   for (const lib of libs) {
     const card = document.createElement("div");
     card.className = "library-card";
+    card.style.animationDelay = staggerDelay(li++);
     card.title = lib.name;
     card.innerHTML = `
       <span class="icon material-symbols-outlined">folder_open</span>
@@ -510,6 +528,7 @@ function renderLibraries(libs) {
   // Кнопка «+» добавления библиотеки
   const add = document.createElement("div");
   add.className = "library-card library-add";
+  add.style.animationDelay = staggerDelay(li++);
   add.innerHTML = `<span class="icon material-symbols-outlined">add</span><span class="name">Добавить</span>`;
   add.onclick = openLibraryAddModal;
   els.libraries.appendChild(add);

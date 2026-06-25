@@ -1134,6 +1134,26 @@ main {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--md-outline); }
 
+/* --- stagger fade-in для плиток --- */
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tile, .folder, .library-card, .recent-tile {
+  animation: tile-in 220ms cubic-bezier(0.2, 0, 0, 1) backwards;
+}
+
+/* В list-view не сдвигаем по Y, чтобы строки не елозили. */
+.files[data-view="list"] .tile {
+  animation-name: tile-in-fade;
+}
+@keyframes tile-in-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* --- modal dialog (M3 Basic Dialog) --- */
 
 .modal {
