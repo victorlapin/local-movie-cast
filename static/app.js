@@ -31,6 +31,7 @@ const els = {
   tracksTitle: document.querySelector(".tracks-title"),
   tracks: document.getElementById("tracks"),
   castControls: document.getElementById("cast-controls"),
+  revealBtn: document.getElementById("reveal-btn"),
   sheetBackdrop: document.getElementById("sheet-backdrop"),
   sheetClose: document.getElementById("sheet-close"),
 };
@@ -361,8 +362,18 @@ function clearSelection() {
   els.fileMeta.textContent = "";
   els.tracks.innerHTML = "";
   els.tracksTitle.hidden = true;
+  els.revealBtn.hidden = true;
   renderCastControls();
 }
+
+els.revealBtn.onclick = async () => {
+  if (!state.selectedFile) return;
+  try {
+    await api("POST", "/api/reveal", { path: state.selectedFile.path });
+  } catch (e) {
+    showDialog(e.message, "error");
+  }
+};
 
 async function loadRecent() {
   try {
@@ -629,6 +640,7 @@ async function selectFile(f, tileEl) {
   els.fileMeta.textContent = "Читаю дорожки…";
   els.tracks.innerHTML = "";
   els.tracksTitle.hidden = true;
+  els.revealBtn.hidden = false;
   renderCastControls();
 
   try {

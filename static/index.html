@@ -80,7 +80,12 @@
       <button class="sheet-close" id="sheet-close" title="Закрыть">
         <span class="material-symbols-outlined">close</span>
       </button>
-      <h2 id="file-title">Выбери файл</h2>
+      <div class="file-header">
+        <h2 id="file-title">Выбери файл</h2>
+        <button id="reveal-btn" class="reveal-btn" title="Показать в проводнике" hidden>
+          <span class="material-symbols-outlined">folder_open</span>
+        </button>
+      </div>
       <div id="file-meta" class="meta"></div>
       <h3 class="tracks-title" hidden>Аудиодорожки</h3>
       <ul id="tracks" class="tracks"></ul>

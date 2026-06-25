@@ -434,6 +434,35 @@ async def api_libraries_delete(lib_id: str) -> dict:
     return {"ok": True}
 
 
+# --- /api/reveal -------------------------------------------------------------
+
+class RevealRequest(BaseModel):
+    path: str
+
+
+@app.post("/api/reveal")
+async def api_reveal(req: RevealRequest) -> dict:
+    if sys.platform != "win32":
+        raise HTTPException(status_code=400, detail="Только Windows")
+    file_path = _resolve_under_root(req.path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    # ShellExecute — нативный API Windows для запуска приложений с параметрами.
+    # subprocess.Popen с любой формой quotation капризно ведёт себя с
+    # explorer /select,... — иногда папка открывается, файл не выделяется.
+    import ctypes
+    try:
+        ret = ctypes.windll.shell32.ShellExecuteW(
+            None, "open", "explorer.exe",
+            f'/select,"{file_path}"', None, 1,
+        )
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if ret <= 32:
+        raise HTTPException(status_code=500, detail=f"ShellExecute вернул {ret}")
+    return {"ok": True}
+
+
 # --- /api/recent -------------------------------------------------------------
 
 @app.delete("/api/recent")
