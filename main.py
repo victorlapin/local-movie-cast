@@ -278,6 +278,36 @@ async def api_browse(path: str = "") -> dict:
     }
 
 
+# --- /api/stats --------------------------------------------------------------
+
+@app.get("/api/stats")
+async def api_stats() -> dict:
+    libs = state.config.libraries()
+    video_exts = set(state.config.video_extensions)
+
+    def _walk() -> tuple[int, int]:
+        count = 0
+        total = 0
+        for root in libs.values():
+            for current, subdirs, names in os.walk(root, followlinks=False):
+                subdirs[:] = [d for d in subdirs if not _is_hidden(Path(current) / d)]
+                for name in names:
+                    p = Path(current) / name
+                    if p.suffix.lower() not in video_exts:
+                        continue
+                    if _is_hidden(p):
+                        continue
+                    try:
+                        total += p.stat().st_size
+                        count += 1
+                    except OSError:
+                        pass
+        return count, total
+
+    count, total = await asyncio.to_thread(_walk)
+    return {"files": count, "total_size": total, "libraries": len(libs)}
+
+
 # --- /api/search -------------------------------------------------------------
 
 _SEARCH_LIMIT = 200

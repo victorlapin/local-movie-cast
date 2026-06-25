@@ -21,6 +21,7 @@ const els = {
   recent: document.getElementById("recent"),
   librariesSection: document.getElementById("libraries-section"),
   libraries: document.getElementById("libraries"),
+  statsLine: document.getElementById("stats-line"),
   searchInput: document.getElementById("search-input"),
   searchClear: document.getElementById("search-clear"),
   searchSection: document.getElementById("search-section"),
@@ -507,9 +508,32 @@ function renderListing(data) {
   refreshCastingHighlights();
 }
 
+function plural(n, forms) {
+  // forms = ["фильм", "фильма", "фильмов"]
+  const m100 = n % 100, m10 = n % 10;
+  if (m100 >= 11 && m100 <= 14) return forms[2];
+  if (m10 === 1) return forms[0];
+  if (m10 >= 2 && m10 <= 4) return forms[1];
+  return forms[2];
+}
+
+async function loadStats() {
+  try {
+    const s = await api("GET", "/api/stats");
+    const parts = [
+      `${s.files} ${plural(s.files, ["фильм", "фильма", "фильмов"])}`,
+      fmtSize(s.total_size),
+    ];
+    els.statsLine.textContent = parts.join(" · ");
+  } catch {
+    els.statsLine.textContent = "";
+  }
+}
+
 function renderLibraries(libs) {
   els.librariesSection.hidden = false;
   els.libraries.innerHTML = "";
+  loadStats();
   let li = 0;
   for (const lib of libs) {
     const card = document.createElement("div");
