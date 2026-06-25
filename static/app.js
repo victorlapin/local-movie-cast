@@ -403,7 +403,7 @@ function renderRecent(items) {
     `;
     tile.onclick = (ev) => {
       if (ev.target.closest(".recent-remove")) return;
-      castRecent(it);
+      selectFile(it, tile);
     };
     tile.querySelector(".recent-remove").onclick = async (ev) => {
       ev.stopPropagation();
@@ -420,22 +420,6 @@ async function removeRecent(path) {
     await loadRecent();
   } catch (e) {
     showDialog(e.message, "error");
-  }
-}
-
-async function castRecent(item) {
-  if (!state.activeDeviceUuid) {
-    showDialog("Сначала выбери устройство");
-    return;
-  }
-  try {
-    await api("POST", "/api/cast", {
-      device_uuid: state.activeDeviceUuid,
-      path: item.path,
-      audio_index: item.audio_index ?? 0,
-    });
-  } catch (e) {
-    showDialog(`Не удалось: ${e.message}`, "error");
   }
 }
 

@@ -542,6 +542,11 @@ main {
   box-shadow: var(--md-elev-2);
   transform: translateY(-2px);
 }
+
+.recent-tile.selected {
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px var(--md-primary), var(--md-elev-2);
+}
 .recent-tile .thumb {
   width: 100%;
   aspect-ratio: 16 / 9;
