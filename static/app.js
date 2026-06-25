@@ -114,6 +114,12 @@ function stripExt(name) {
   return i > 0 ? name.slice(0, i) : name;
 }
 
+// Вставляет zero-width space после _ . -, чтобы браузер мог переносить длинные
+// «From_Russia_with_love» по разделителям, а не одной кашей.
+function softBreaks(s) {
+  return String(s).replace(/([_.\-])/g, "$1​");
+}
+
 // --- devices ----------------------------------------------------------------
 
 const DEVICE_ICONS = { cast: "cast", audio: "speaker", group: "speaker_group" };
@@ -231,7 +237,7 @@ let _searchSeq = 0;
 els.searchInput.addEventListener("input", () => {
   els.searchClear.hidden = !els.searchInput.value;
   if (_searchDebounce) clearTimeout(_searchDebounce);
-  _searchDebounce = setTimeout(runSearch, 200);
+  _searchDebounce = setTimeout(runSearch, 400);
 });
 
 els.searchClear.onclick = () => {
@@ -294,13 +300,18 @@ function renderSearch(query, data) {
   els.searchResults.dataset.view = els.files.dataset.view || "grid";
   for (const f of sortFiles(data.results)) {
     const tile = makeTile(f);
-    // Подпишем папку, чтобы понятно, где файл лежит.
+    // Подпишем папку, чтобы понятно, где файл лежит. lib_id из начала пути
+    // убираем — для юзера это бессмысленный хэш.
     if (f.dir) {
-      const caption = tile.querySelector(".caption");
-      const sub = document.createElement("span");
-      sub.className = "tile-subdir";
-      sub.textContent = f.dir;
-      caption.insertBefore(sub, caption.firstChild);
+      const slash = f.dir.indexOf("/");
+      const displayDir = slash >= 0 ? f.dir.slice(slash + 1) : "";
+      if (displayDir) {
+        const caption = tile.querySelector(".caption");
+        const sub = document.createElement("span");
+        sub.className = "tile-subdir";
+        sub.textContent = softBreaks(displayDir);
+        caption.insertBefore(sub, caption.firstChild);
+      }
     }
     els.searchResults.appendChild(tile);
   }
@@ -592,7 +603,8 @@ function makeTile(f) {
   const caption = document.createElement("div");
   caption.className = "caption";
   const name = document.createElement("span");
-  name.textContent = stripExt(f.name);
+  name.className = "tile-name";
+  name.textContent = softBreaks(stripExt(f.name));
   const size = document.createElement("span");
   size.className = "size";
   size.textContent = fmtSize(f.size);

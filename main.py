@@ -283,10 +283,20 @@ async def api_browse(path: str = "") -> dict:
 _SEARCH_LIMIT = 200
 
 
+def _normalize_for_search(s: str) -> str:
+    """Приводит строку к виду, где разделители стандартизованы: lowercase
+    + замена `_ . -` на пробелы. Так 'From_Russia_with_love' матчится с 'from russia'."""
+    out = s.lower()
+    for ch in "_.-":
+        out = out.replace(ch, " ")
+    return out
+
+
 @app.get("/api/search")
 async def api_search(q: str) -> dict:
-    query = (q or "").strip().lower()
-    if not query:
+    raw = (q or "").strip()
+    tokens = [t for t in _normalize_for_search(raw).split() if t]
+    if not tokens:
         return {"results": [], "total": 0, "limited": False}
 
     video_exts = set(state.config.video_extensions)
@@ -300,7 +310,8 @@ async def api_search(q: str) -> dict:
                 # Скрытые директории убираем in-place — os.walk не пойдёт туда.
                 subdirs[:] = [d for d in subdirs if not _is_hidden(Path(current) / d)]
                 for name in names:
-                    if query not in name.lower():
+                    haystack = _normalize_for_search(name)
+                    if not all(tok in haystack for tok in tokens):
                         continue
                     p = Path(current) / name
                     if p.suffix.lower() not in video_exts:
