@@ -586,7 +586,13 @@ async def api_cast(req: CastRequest) -> dict:
         Streamer.terminate_session(session)
         state.sessions_by_device.pop(req.device_uuid, None)
         state.sessions_by_token.pop(token, None)
-        raise HTTPException(status_code=500, detail=f"Cast failed: {e}")
+        cls_name = type(e).__name__
+        # Понятная подмена технических ошибок PyChromecast.
+        if "Timeout" in cls_name or "timed out" in str(e):
+            msg = "Устройство не отвечает. Проверьте, включён ли телевизор и есть ли связь по Wi-Fi."
+        else:
+            msg = f"Не удалось запустить трансляцию: {e}"
+        raise HTTPException(status_code=500, detail=msg)
 
     power.acquire(token)
     state.recents.add(req.path, req.audio_index)
@@ -642,13 +648,37 @@ async def api_stop(req: StopRequest) -> dict:
 
 # --- /api/status/stream (SSE) ------------------------------------------------
 
+def _enrich_with_session(snap: dict) -> dict:
+    """Дописывает в snapshot устройства поля our_*. Ключи присутствуют ВСЕГДА,
+    None если сессии нет — иначе frontend-merge сохранит устаревшие значения
+    после остановки трансляции."""
+    sess = state.sessions_by_device.get(snap.get("uuid"))
+    if sess:
+        snap["our_mode"] = sess.mode
+        snap["our_file"] = sess.rel_path
+        snap["our_audio_index"] = sess.audio_track.audio_index
+        snap["our_audio_lang"] = sess.audio_track.lang
+        snap["our_audio_codec"] = sess.audio_track.codec
+        # Chromecast сам не знает реальной длительности fragmented MP4 — ставим
+        # из ffprobe, иначе прогресс-бар показывает огрызок.
+        if sess.duration:
+            snap["duration"] = sess.duration
+    else:
+        snap["our_mode"] = None
+        snap["our_file"] = None
+        snap["our_audio_index"] = None
+        snap["our_audio_lang"] = None
+        snap["our_audio_codec"] = None
+    return snap
+
+
 @app.get("/api/status/stream")
 async def api_status_stream(request: Request):
     queue = state.cast_manager.subscribe()
 
     async def gen():
         try:
-            # начальный снапшот
+            # начальный снапшот — уже обогащённый внутри api_devices
             initial = await api_devices()
             yield f"data: {json.dumps({'type': 'snapshot', 'devices': initial})}\n\n"
             while True:
@@ -656,9 +686,9 @@ async def api_status_stream(request: Request):
                     break
                 try:
                     update = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    update = _enrich_with_session(update)
                     yield f"data: {json.dumps({'type': 'update', 'device': update})}\n\n"
                 except asyncio.TimeoutError:
-                    # keep-alive
                     yield ": keep-alive\n\n"
         finally:
             state.cast_manager.unsubscribe(queue)
