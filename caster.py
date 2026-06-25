@@ -124,6 +124,26 @@ class CastManager:
             raise KeyError(f"Устройство {uuid} не найдено")
         return self.devices[uuid]
 
+    def _reconnect(self, uuid: str) -> Chromecast:
+        """Полностью пересоздаёт клиента к устройству: убивает старый socket,
+        делает новый через CastBrowser, регистрирует listeners. Возвращает
+        новый Chromecast и кладёт его в self.devices."""
+        old = self.devices.get(uuid)
+        cast_info = old.cast_info if old else None
+        if old is not None:
+            try:
+                old.disconnect()
+            except Exception:
+                pass
+        if cast_info is None:
+            raise RuntimeError(f"Нет cast_info для {uuid}")
+        new_cc = pychromecast.get_chromecast_from_cast_info(cast_info, self._zconf)
+        new_cc.start()
+        new_cc.media_controller.register_status_listener(_MediaListener(self, uuid))
+        new_cc.register_status_listener(_CastListener(self, uuid))
+        self.devices[uuid] = new_cc
+        return new_cc
+
     def cast_url(
         self,
         uuid: str,
@@ -133,12 +153,24 @@ class CastManager:
         start_seconds: float = 0,
     ) -> None:
         cc = self.get(uuid)
-        # Убеждаемся, что socket_client готов (могло быть отложенно после discovery).
+        # Убеждаемся, что socket_client готов. Если первый wait упал —
+        # пересоздаём клиента (устройство могло «уплыть» из-за Wi-Fi или
+        # ухода ТВ в standby) и пробуем ещё раз.
         try:
-            cc.wait(timeout=15)
+            cc.wait(timeout=10)
         except Exception:
-            logger.exception("cc.wait перед кастом упал на %s", cc.cast_info.friendly_name)
-            raise
+            logger.warning("cc.wait упал на %s, пересоздаю клиент и пробую снова",
+                           cc.cast_info.friendly_name)
+            cc = self._reconnect(uuid)
+            try:
+                # Длинный таймаут — Chromecast Ultra иногда «приспит» свой
+                # control-сокет и просыпается секунд за 20-30, особенно если
+                # ТВ был выключен и CEC ещё не сработал.
+                cc.wait(timeout=30)
+            except Exception:
+                logger.exception("cc.wait упал повторно на %s — устройство недоступно",
+                                 cc.cast_info.friendly_name)
+                raise
         kwargs: dict[str, Any] = {}
         if start_seconds and start_seconds > 0:
             kwargs["current_time"] = float(start_seconds)
