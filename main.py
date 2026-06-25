@@ -1,8 +1,13 @@
 """FastAPI приложение local-movie-cast."""
 from __future__ import annotations
 
+import mimetypes
 import os
 import sys
+
+# .webmanifest по умолчанию не в mimetypes — добавим явно, чтобы StaticFiles
+# отдавал правильный Content-Type для PWA-манифеста.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 # В PyInstaller --windowed sys.stdout/sys.stderr могут быть None.
 # Любая библиотека, которая дёргает stdout.isatty() (uvicorn для покраски логов
