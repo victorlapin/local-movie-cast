@@ -404,13 +404,19 @@ function renderRecent(items) {
     tile.title = it.name;
     tile.dataset.path = it.path;
     tile.innerHTML = `
-      <div class="thumb">
+      <div class="thumb loading">
         <img loading="lazy" alt="" src="/api/thumb?path=${encodeURIComponent(it.path)}">
         <span class="now-playing material-symbols-outlined">play_arrow</span>
         <button class="recent-remove" title="Убрать из недавнего">${mi("close")}</button>
       </div>
       <div class="caption">${escapeHtml(stripExt(it.name))}</div>
     `;
+    const recImg = tile.querySelector(".thumb img");
+    const recThumb = tile.querySelector(".thumb");
+    recImg.onload = () => {
+      recThumb.classList.remove("loading");
+      recImg.classList.add("loaded");
+    };
     tile.onclick = (ev) => {
       if (ev.target.closest(".recent-remove")) return;
       selectFile(it, tile);
@@ -604,7 +610,10 @@ function makeTile(f) {
   const img = document.createElement("img");
   img.loading = "lazy";
   img.alt = "";
-  img.onload = () => thumb.classList.remove("loading");
+  img.onload = () => {
+    thumb.classList.remove("loading");
+    img.classList.add("loaded");
+  };
   img.onerror = () => { thumb.classList.remove("loading"); thumb.innerHTML = mi("movie"); img.remove(); };
   img.src = `/api/thumb?path=${encodeURIComponent(f.path)}`;
   thumb.appendChild(img);
