@@ -603,6 +603,9 @@ main {
 .recent-remove .material-symbols-outlined { font-size: 16px; }
 
 .recent-tile:hover .recent-remove { display: flex; }
+@media (hover: none) {
+  .recent-remove { display: flex; }
+}
 .recent-remove:hover { background: var(--md-error-container); color: var(--md-on-error-container); }
 .recent-tile .caption {
   padding: 8px 10px 10px;
@@ -691,6 +694,9 @@ main {
 }
 .library-remove .material-symbols-outlined { font-size: 16px; }
 .library-card:not(.library-add):hover .library-remove { display: flex; }
+@media (hover: none) {
+  .library-card:not(.library-add) .library-remove { display: flex; }
+}
 .library-remove:hover {
   background: var(--md-error-container);
   color: var(--md-on-error-container);
