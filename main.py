@@ -246,6 +246,7 @@ async def api_browse(path: str = "") -> dict:
                 "path": lib_id,
                 "type": "library",
                 "online": _lib_root_online(lib_id),
+                "fs_path": str(root),
             })
         return {"path": "", "parent": None, "dirs": dirs, "files": []}
 

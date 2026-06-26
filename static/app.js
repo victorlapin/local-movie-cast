@@ -543,7 +543,7 @@ function renderLibraries(libs) {
     const card = document.createElement("div");
     card.className = "library-card" + (lib.online === false ? " offline" : "");
     card.style.animationDelay = staggerDelay(li++);
-    card.title = lib.name + (lib.online === false ? " (недоступна)" : "");
+    card.title = (lib.fs_path || lib.name) + (lib.online === false ? " (недоступна)" : "");
     const iconName = lib.online === false ? "cloud_off" : "folder_open";
     const offlineBadge = lib.online === false
       ? `<span class="lib-offline-badge">недоступна</span>` : "";
