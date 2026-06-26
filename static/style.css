@@ -405,6 +405,7 @@ main {
   justify-content: center;
   padding: 0;
 }
+.search-clear[hidden] { display: none; }
 .search-clear:hover {
   background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
 }
@@ -1018,9 +1019,13 @@ main {
   flex-shrink: 0;
   transition: background-color 120ms, color 120ms;
 }
-.reveal-btn:hover {
+.reveal-btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
   color: var(--md-on-surface);
+}
+.reveal-btn:disabled {
+  color: color-mix(in srgb, var(--md-on-surface) 38%, transparent);
+  cursor: not-allowed;
 }
 .reveal-btn .material-symbols-outlined { font-size: 20px; }
 

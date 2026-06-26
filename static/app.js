@@ -400,7 +400,7 @@ function clearSelection() {
   els.fileMeta.textContent = "";
   els.tracks.innerHTML = "";
   els.tracksTitle.hidden = true;
-  els.revealBtn.hidden = true;
+  els.revealBtn.disabled = true;
   renderCastControls();
 }
 
@@ -717,7 +717,7 @@ async function selectFile(f, tileEl) {
   els.fileMeta.textContent = "Читаю дорожки…";
   els.tracks.innerHTML = "";
   els.tracksTitle.hidden = true;
-  els.revealBtn.hidden = false;
+  els.revealBtn.disabled = false;
   renderCastControls();
 
   try {
