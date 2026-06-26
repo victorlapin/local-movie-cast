@@ -743,6 +743,13 @@ main {
   font-size: 14px;
 }
 
+.cast-btn.cast-btn-danger {
+  --cast-bg: var(--md-error);
+  --cast-fg: var(--md-on-error);
+  --cast-bg-hover: color-mix(in srgb, var(--md-on-error) 10%, var(--md-error));
+  box-shadow: var(--md-elev-2);
+}
+
 .folders {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

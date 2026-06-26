@@ -105,6 +105,35 @@ function showDialog(message, type) {
   });
 })();
 
+function showConfirm(message, options = {}) {
+  const okLabel = options.okLabel || "ОК";
+  const cancelLabel = options.cancelLabel || "Отмена";
+  const danger = !!options.danger;
+  return new Promise(resolve => {
+    const modal = document.getElementById("confirm-modal");
+    if (!modal) { resolve(window.confirm(message)); return; }
+    modal.querySelector(".modal-message").textContent = message;
+    const okBtn = modal.querySelector('[data-confirm="ok"]');
+    const cancelBtn = modal.querySelector('[data-confirm="cancel"]');
+    okBtn.textContent = okLabel;
+    cancelBtn.textContent = cancelLabel;
+    okBtn.classList.toggle("cast-btn-danger", danger);
+
+    const ctrl = new AbortController();
+    const close = (result) => { ctrl.abort(); modal.close(); resolve(result); };
+    okBtn.addEventListener("click", () => close(true), { signal: ctrl.signal });
+    cancelBtn.addEventListener("click", () => close(false), { signal: ctrl.signal });
+    modal.addEventListener("click", (ev) => {
+      const content = modal.querySelector(".modal-content");
+      if (content && !content.contains(ev.target)) close(false);
+    }, { signal: ctrl.signal });
+    modal.addEventListener("close", () => { ctrl.abort(); resolve(false); }, { signal: ctrl.signal, once: true });
+
+    if (typeof modal.showModal === "function") modal.showModal();
+    else modal.setAttribute("open", "");
+  });
+}
+
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -606,7 +635,11 @@ function openLibraryAddModal() {
 
 async function removeLibrary(libIdOrPath, name) {
   // libIdOrPath: путь в карточке = lib_id (просто idшник, не путь)
-  if (!confirm(`Убрать «${name}» из списка библиотек?\n\nФайлы на диске НЕ удаляются.`)) return;
+  const ok = await showConfirm(
+    `Убрать «${name}» из списка библиотек? Файлы на диске не удаляются.`,
+    { okLabel: "Убрать", danger: true }
+  );
+  if (!ok) return;
   try {
     await api("DELETE", `/api/libraries/${encodeURIComponent(libIdOrPath)}`);
     await loadDir("");
