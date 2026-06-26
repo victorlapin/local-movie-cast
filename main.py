@@ -164,6 +164,18 @@ def _resolve_under_root(api_path: str) -> Path:
     return target
 
 
+def _lib_root_online(lib_id: str) -> bool:
+    """True если корень библиотеки сейчас доступен (диск примонтирован)."""
+    libs = state.config.libraries()
+    root = libs.get(lib_id)
+    if root is None:
+        return False
+    try:
+        return root.exists() and root.is_dir()
+    except OSError:
+        return False
+
+
 def _relpath(p: Path, lib_id: str, lib_root: Path) -> str:
     """Делает API-путь '<lib_id>/<rel>'. Если p == lib_root — вернёт просто lib_id."""
     rel = p.relative_to(lib_root)
@@ -229,13 +241,24 @@ async def api_browse(path: str = "") -> dict:
             name = root.name or str(root)
             if len(by_name.get(name, [])) > 1:
                 name = f"{name} ({root.parent})"
-            dirs.append({"name": name, "path": lib_id, "type": "library"})
+            dirs.append({
+                "name": name,
+                "path": lib_id,
+                "type": "library",
+                "online": _lib_root_online(lib_id),
+            })
         return {"path": "", "parent": None, "dirs": dirs, "files": []}
 
     lib_id, _ = _split_lib_path(path)
     if lib_id not in libs:
         raise HTTPException(status_code=404, detail="Библиотека не найдена")
     lib_root = libs[lib_id]
+    # Сначала проверим сам корень — это даёт понятный месседж при отключении диска.
+    if not _lib_root_online(lib_id):
+        raise HTTPException(
+            status_code=503,
+            detail=f"Библиотека «{lib_root.name or lib_root}» сейчас недоступна. Проверь, подключён ли диск.",
+        )
     target = _resolve_under_root(path)
     if not target.exists() or not target.is_dir():
         raise HTTPException(status_code=404, detail="Директория не найдена")
@@ -289,11 +312,14 @@ async def api_browse(path: str = "") -> dict:
 async def api_stats() -> dict:
     libs = state.config.libraries()
     video_exts = set(state.config.video_extensions)
+    online_ids = [lib_id for lib_id in libs if _lib_root_online(lib_id)]
+    offline_count = len(libs) - len(online_ids)
 
     def _walk() -> tuple[int, int]:
         count = 0
         total = 0
-        for root in libs.values():
+        for lib_id in online_ids:
+            root = libs[lib_id]
             for current, subdirs, names in os.walk(root, followlinks=False):
                 subdirs[:] = [d for d in subdirs if not _is_hidden(Path(current) / d)]
                 for name in names:
@@ -310,7 +336,12 @@ async def api_stats() -> dict:
         return count, total
 
     count, total = await asyncio.to_thread(_walk)
-    return {"files": count, "total_size": total, "libraries": len(libs)}
+    return {
+        "files": count,
+        "total_size": total,
+        "libraries": len(libs),
+        "offline_libraries": offline_count,
+    }
 
 
 # --- /api/search -------------------------------------------------------------
@@ -341,6 +372,8 @@ async def api_search(q: str) -> dict:
         out: list[dict] = []
         limited = False
         for lib_id, root in libs.items():
+            if not _lib_root_online(lib_id):
+                continue
             for current, subdirs, names in os.walk(root, followlinks=False):
                 # Скрытые директории убираем in-place — os.walk не пойдёт туда.
                 subdirs[:] = [d for d in subdirs if not _is_hidden(Path(current) / d)]
@@ -512,12 +545,19 @@ async def api_recent() -> list[dict]:
     out: list[dict] = []
     for item in items:
         rel = item.get("path", "")
+        lib_id, _ = _split_lib_path(rel)
+        # Если библиотека сейчас offline (диск отключён) — оставляем запись
+        # как есть, не показываем и не удаляем. Появится снова при подключении.
+        if not _lib_root_online(lib_id):
+            continue
         try:
             abs_path = _resolve_under_root(rel)
         except HTTPException:
+            # Библиотека удалена из конфига — чистим
+            state.recents.remove(rel)
             continue
         if not abs_path.exists() or not abs_path.is_file():
-            # файл удалён или перемещён — почистим за собой
+            # Диск онлайн, но файла нет — реально удалён, чистим
             state.recents.remove(rel)
             continue
         out.append({
@@ -536,7 +576,11 @@ async def api_position_get(path: str) -> dict:
     pos = state.positions.get(path)
     if pos is None:
         return {"position": None}
-    # Заодно чистим зомби — если файл перенесли/удалили, выкидываем запись.
+    lib_id, _ = _split_lib_path(path)
+    # Библиотека offline — возвращаем как есть, не удаляем (диск может быть
+    # временно отключён).
+    if not _lib_root_online(lib_id):
+        return {"position": pos}
     try:
         abs_path = _resolve_under_root(path)
     except HTTPException:

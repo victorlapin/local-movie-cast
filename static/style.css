@@ -676,6 +676,24 @@ main {
 }
 .library-card.library-add .icon { color: var(--md-on-surface-variant); }
 
+.library-card.offline {
+  opacity: 0.6;
+}
+.library-card.offline .icon { color: var(--md-on-surface-variant); }
+.library-card.offline:hover { opacity: 0.9; }
+
+.lib-offline-badge {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-on-surface-variant);
+  background: var(--md-surface-container-highest);
+  padding: 2px 8px;
+  border-radius: var(--md-radius-full);
+  align-self: flex-start;
+}
+
 .library-remove {
   position: absolute;
   top: 8px;

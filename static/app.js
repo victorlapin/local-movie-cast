@@ -444,7 +444,7 @@ function renderCrumbs(currentPath) {
   els.crumbs.innerHTML = "";
   const root = document.createElement("a");
   root.textContent = "media_root";
-  root.onclick = () => loadDir("");
+  root.onclick = () => loadDir("").catch(e => showDialog(e.message, "error"));
   els.crumbs.appendChild(root);
   if (!currentPath) return;
   const parts = currentPath.split("/");
@@ -455,7 +455,7 @@ function renderCrumbs(currentPath) {
     const a = document.createElement("a");
     a.textContent = p;
     const target = acc;
-    a.onclick = () => loadDir(target);
+    a.onclick = () => loadDir(target).catch(e => showDialog(e.message, "error"));
     els.crumbs.appendChild(a);
   }
 }
@@ -482,7 +482,7 @@ function renderListing(data) {
     up.className = "folder up";
     up.style.animationDelay = staggerDelay(fi++);
     up.innerHTML = `<span class="icon">${mi("arrow_upward")}</span><span>..</span>`;
-    up.onclick = () => loadDir(data.parent);
+    up.onclick = () => loadDir(data.parent).catch(e => showDialog(e.message, "error"));
     els.folders.appendChild(up);
   }
   for (const d of data.dirs) {
@@ -491,7 +491,7 @@ function renderListing(data) {
     div.style.animationDelay = staggerDelay(fi++);
     div.title = d.name;
     div.innerHTML = `<span class="icon">${mi("folder")}</span><span>${escapeHtml(d.name)}</span>`;
-    div.onclick = () => loadDir(d.path);
+    div.onclick = () => loadDir(d.path).catch(e => showDialog(e.message, "error"));
     els.folders.appendChild(div);
   }
   els.folders.style.display = (data.dirs.length || data.parent != null) ? "" : "none";
@@ -524,6 +524,10 @@ async function loadStats() {
       `${s.files} ${plural(s.files, ["фильм", "фильма", "фильмов"])}`,
       fmtSize(s.total_size),
     ];
+    if (s.offline_libraries > 0) {
+      const n = s.offline_libraries;
+      parts.push(`${n} ${plural(n, ["недоступна", "недоступны", "недоступно"])}`);
+    }
     els.statsLine.textContent = parts.join(" · ");
   } catch {
     els.statsLine.textContent = "";
@@ -537,17 +541,21 @@ function renderLibraries(libs) {
   let li = 0;
   for (const lib of libs) {
     const card = document.createElement("div");
-    card.className = "library-card";
+    card.className = "library-card" + (lib.online === false ? " offline" : "");
     card.style.animationDelay = staggerDelay(li++);
-    card.title = lib.name;
+    card.title = lib.name + (lib.online === false ? " (недоступна)" : "");
+    const iconName = lib.online === false ? "cloud_off" : "folder_open";
+    const offlineBadge = lib.online === false
+      ? `<span class="lib-offline-badge">недоступна</span>` : "";
     card.innerHTML = `
-      <span class="icon material-symbols-outlined">folder_open</span>
+      <span class="icon material-symbols-outlined">${iconName}</span>
       <span class="name">${escapeHtml(lib.name)}</span>
+      ${offlineBadge}
       <button class="library-remove" title="Убрать">${mi("close")}</button>
     `;
     card.onclick = (ev) => {
       if (ev.target.closest(".library-remove")) return;
-      loadDir(lib.path);
+      loadDir(lib.path).catch(e => showDialog(e.message, "error"));
     };
     card.querySelector(".library-remove").onclick = (ev) => {
       ev.stopPropagation();
@@ -942,7 +950,10 @@ async function loadVersion() {
 // --- boot -------------------------------------------------------------------
 
 loadDir(pathFromHash()).catch(e => {
-  els.files.innerHTML = `<div class="empty">Ошибка: ${escapeHtml(e.message)}</div>`;
+  showDialog(e.message, "error");
+  // Если зайти в путь не получилось — откатываемся на главную, чтобы
+  // юзер увидел актуальное состояние библиотек, а не застывший экран ошибки.
+  if (state.currentPath) loadDir("").catch(() => {});
 });
 connectStatus();
 loadVersion();
