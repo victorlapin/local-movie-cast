@@ -85,6 +85,46 @@
 
 .field.collapsed input { max-width: 120px; }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--md-outline);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color 120ms, border-color 120ms;
+}
+.checkbox-row input[type="checkbox"]:checked {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+}
+.checkbox-row input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--md-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.checkbox-row span { font-size: 14px; color: var(--md-on-surface); }
+
+.checkbox-row:has(input:disabled) { cursor: not-allowed; opacity: 0.55; }
+.checkbox-row input[type="checkbox"]:disabled { cursor: not-allowed; }
+
 .discovered {
   background: var(--md-surface-container-high);
   border-radius: var(--md-radius-sm);

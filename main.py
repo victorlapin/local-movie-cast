@@ -826,7 +826,23 @@ async def stream(token: str, request: Request):
 
 # --- setup wizard ------------------------------------------------------------
 
-_ALWAYS_OPEN_API_PREFIXES = ("/api/setup", "/api/version", "/api/firewall")
+_ALWAYS_OPEN_API_PREFIXES = ("/api/setup", "/api/version", "/api/firewall", "/api/autostart")
+
+
+# --- /api/autostart ----------------------------------------------------------
+
+@app.get("/api/autostart/status")
+async def api_autostart_status() -> dict:
+    return {
+        "supported": autostart.is_supported(),
+        "enabled": autostart.is_enabled(),
+    }
+
+
+@app.post("/api/autostart/enable")
+async def api_autostart_enable() -> dict:
+    autostart.enable()
+    return {"ok": True, "enabled": autostart.is_enabled()}
 
 
 # --- /api/firewall ----------------------------------------------------------

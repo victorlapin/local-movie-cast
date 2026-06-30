@@ -82,6 +82,12 @@ els.form.onsubmit = async (ev) => {
       try { msg = (await r.json()).detail || msg; } catch {}
       throw new Error(msg);
     }
+    // Автозапуск, если пользователь оставил галку (и фича реально доступна)
+    const autoCb = document.getElementById("autostart-cb");
+    if (autoCb && autoCb.checked && !autoCb.disabled) {
+      try { await fetch("/api/autostart/enable", { method: "POST" }); } catch {}
+    }
+
     els.form.hidden = true;
     els.done.hidden = false;
     // Soft-reload отработал внутри сервера — можно сразу на главную.
@@ -94,6 +100,23 @@ els.form.onsubmit = async (ev) => {
     if (els.submitLabel) els.submitLabel.textContent = "Сохранить и запустить";
   }
 };
+
+async function checkAutostart() {
+  const cb = document.getElementById("autostart-cb");
+  const hint = document.getElementById("autostart-hint");
+  try {
+    const s = await fetch("/api/autostart/status").then(r => r.json());
+    if (!s.supported) {
+      cb.disabled = true;
+      cb.checked = false;
+      hint.textContent = "Доступно только в собранной версии (.exe). В режиме разработки игнорируется.";
+    } else if (s.enabled) {
+      cb.disabled = true;
+      cb.checked = true;
+      hint.textContent = "Автозапуск уже включён. Управлять можно через меню в трее.";
+    }
+  } catch {}
+}
 
 async function discoverDevices() {
   const el = document.getElementById("discovered");
@@ -122,3 +145,4 @@ async function discoverDevices() {
 
 loadInfo();
 discoverDevices();
+checkAutostart();
