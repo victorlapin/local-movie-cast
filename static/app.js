@@ -862,6 +862,9 @@ function connectStatus() {
     if (msg.type === "snapshot") {
       state.devices = msg.devices;
       renderDevices();
+      // Первая проверка — после первого снапшота, когда точно знаем,
+      // нашёлся ли хоть один Chromecast.
+      checkFirewall();
       refreshCastingHighlights();
       syncSavedPositionFromDevices();
       renderCastControls();
@@ -981,6 +984,59 @@ async function loadVersion() {
 }
 
 // --- boot -------------------------------------------------------------------
+
+// --- firewall ---------------------------------------------------------------
+
+async function checkFirewall() {
+  if (sessionStorage.getItem("fw-dismissed")) return;
+  try {
+    const s = await api("GET", "/api/firewall/status");
+    if (!s.supported) return;
+    if (s.http_rule && s.mdns_rule) return;
+    // Правил нет, но это не обязательно проблема: Windows мог разрешить
+    // через другое правило при первом запуске .exe. Покажем баннер только
+    // если устройства реально не находятся.
+    if (state.devices && state.devices.length > 0) return;
+    showFirewallBanner();
+  } catch {}
+}
+
+function showFirewallBanner() {
+  const banner = document.getElementById("fw-banner");
+  if (!banner) return;
+  banner.hidden = false;
+  banner.innerHTML = `
+    <span class="material-symbols-outlined fw-banner-icon">shield_lock</span>
+    <div class="fw-banner-text">
+      <strong>Chromecast не обнаружен</strong>
+      <span>Возможно, виноват брандмауэр Windows. Добавить правило?</span>
+    </div>
+    <button class="cast-btn cast-btn-compact" id="fw-add">Добавить</button>
+    <button class="cast-btn-outlined cast-btn-compact" id="fw-skip">Скрыть</button>
+  `;
+  document.getElementById("fw-add").onclick = async (ev) => {
+    ev.currentTarget.disabled = true;
+    try {
+      await api("POST", "/api/firewall/add");
+      // Перепроверим — если правила появились, баннер скрываем.
+      const s = await api("GET", "/api/firewall/status");
+      if (s.http_rule && s.mdns_rule) {
+        banner.hidden = true;
+        showDialog("Правила добавлены. Перезагрузка сервиса не нужна.");
+      } else {
+        showDialog("Правила не появились. Возможно, ты отказал в UAC. Попробуй ещё раз.", "error");
+        ev.currentTarget.disabled = false;
+      }
+    } catch (e) {
+      showDialog(e.message, "error");
+      ev.currentTarget.disabled = false;
+    }
+  };
+  document.getElementById("fw-skip").onclick = () => {
+    sessionStorage.setItem("fw-dismissed", "1");
+    banner.hidden = true;
+  };
+}
 
 loadDir(pathFromHash()).catch(e => {
   showDialog(e.message, "error");

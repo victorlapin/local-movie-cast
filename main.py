@@ -826,7 +826,63 @@ async def stream(token: str, request: Request):
 
 # --- setup wizard ------------------------------------------------------------
 
-_ALWAYS_OPEN_API_PREFIXES = ("/api/setup", "/api/version")
+_ALWAYS_OPEN_API_PREFIXES = ("/api/setup", "/api/version", "/api/firewall")
+
+
+# --- /api/firewall ----------------------------------------------------------
+
+_FIREWALL_HTTP_RULE = "local-movie-cast HTTP"
+_FIREWALL_MDNS_RULE = "local-movie-cast mDNS"
+_FW_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
+
+
+def _firewall_rule_exists(name: str) -> bool:
+    if sys.platform != "win32":
+        return False
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["netsh", "advfirewall", "firewall", "show", "rule", f"name={name}"],
+            capture_output=True, creationflags=_FW_NO_WINDOW, timeout=5,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+@app.get("/api/firewall/status")
+async def api_firewall_status() -> dict:
+    if sys.platform != "win32":
+        return {"supported": False, "http_rule": False, "mdns_rule": False}
+    http = await asyncio.to_thread(_firewall_rule_exists, _FIREWALL_HTTP_RULE)
+    mdns = await asyncio.to_thread(_firewall_rule_exists, _FIREWALL_MDNS_RULE)
+    return {"supported": True, "http_rule": http, "mdns_rule": mdns}
+
+
+@app.post("/api/firewall/add")
+async def api_firewall_add() -> dict:
+    if sys.platform != "win32":
+        raise HTTPException(status_code=400, detail="Только Windows")
+    port = state.config.port if state.config else 8000
+    # Цепочка из двух правил в одной cmd-команде, выполняется с UAC.
+    cmd_str = (
+        f'netsh advfirewall firewall add rule name="{_FIREWALL_HTTP_RULE}" '
+        f'dir=in action=allow protocol=TCP localport={port} '
+        f'&& netsh advfirewall firewall add rule name="{_FIREWALL_MDNS_RULE}" '
+        f'dir=in action=allow protocol=UDP localport=5353'
+    )
+    import ctypes
+    # SW_HIDE = 0, чтобы окно cmd не моргнуло.
+    ret = ctypes.windll.shell32.ShellExecuteW(
+        None, "runas", "cmd.exe", f"/c {cmd_str}", None, 0,
+    )
+    if ret == 5:
+        raise HTTPException(status_code=403, detail="Пользователь отказался дать права администратора")
+    if ret <= 32:
+        raise HTTPException(status_code=500, detail=f"ShellExecute вернул {ret}")
+    # netsh сам выполняется быстро, но даём ему секунду на завершение
+    await asyncio.sleep(1.0)
+    return {"ok": True}
 
 
 @app.middleware("http")

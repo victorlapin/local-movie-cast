@@ -141,6 +141,31 @@ body {
   user-select: none;
 }
 
+/* --- firewall banner --- */
+
+.fw-banner {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--md-outline-variant);
+}
+.fw-banner-icon { font-size: 24px; flex-shrink: 0; }
+.fw-banner-text {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.fw-banner-text strong { font-weight: 500; }
+.fw-banner-text span { color: color-mix(in srgb, var(--md-on-secondary-container) 80%, transparent); }
+
 /* --- top app bar --- */
 
 header {
