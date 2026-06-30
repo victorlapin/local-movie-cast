@@ -113,7 +113,8 @@ async def _init_with_config() -> None:
     state.cast_manager = CastManager()
     state.cast_manager.attach_loop(asyncio.get_event_loop())
     state.cast_manager.set_status_handler(_on_device_status)
-    await asyncio.to_thread(state.cast_manager.discover, 5.0)
+    # Без warm-up'а: CastBrowser работает в фоне, устройства прилетают через SSE.
+    await asyncio.to_thread(state.cast_manager.discover)
     logger.info("Готов: %d Chromecast(ов), порт %d, host_ip %s",
                 len(state.cast_manager.devices), state.config.port, state.config.host_ip)
 

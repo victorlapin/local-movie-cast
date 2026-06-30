@@ -80,9 +80,13 @@ class CastManager:
     def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
 
-    def discover(self, timeout: float = 5.0) -> list[dict[str, Any]]:
-        """Блокирующий старт CastBrowser + ожидание initial-окна. Дальше discovery идёт фоном."""
-        logger.info("Запускаю Chromecast discovery (timeout=%s)", timeout)
+    def discover(self, warmup: float = 0.0) -> list[dict[str, Any]]:
+        """Запускает CastBrowser. Дальше discovery идёт фоном — устройства
+        прилетают через коллбэки и дальше прокидываются по SSE.
+        `warmup > 0` — синхронно подождать столько секунд для initial-snapshot'а.
+        В большинстве случаев не нужно: фронт всё равно увидит устройства через
+        пару секунд от SSE-апдейтов."""
+        logger.info("Запускаю Chromecast discovery (warmup=%s)", warmup)
         self._zconf = zeroconf.Zeroconf()
         self._browser = CastBrowser(
             SimpleCastListener(
@@ -93,7 +97,8 @@ class CastManager:
             self._zconf,
         )
         self._browser.start_discovery()
-        time.sleep(timeout)
+        if warmup > 0:
+            time.sleep(warmup)
         return self.list_devices()
 
     def shutdown(self) -> None:
