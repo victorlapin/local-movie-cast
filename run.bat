@@ -16,11 +16,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not exist "config.yaml" (
-    echo config.yaml not found. Copy config.example.yaml to config.yaml and edit it.
-    exit /b 1
-)
-
 if not exist "bin\ffmpeg.exe" (
     echo ffmpeg.exe not found in bin\. Run setup_ffmpeg.bat first.
     exit /b 1
