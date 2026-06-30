@@ -85,6 +85,34 @@
 
 .field.collapsed input { max-width: 120px; }
 
+.discovered {
+  background: var(--md-surface-container-high);
+  border-radius: var(--md-radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  min-height: 38px;
+}
+.discovered.ok {
+  background: var(--md-tertiary-container);
+  color: var(--md-on-tertiary-container);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.discovered-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.discovered-item .material-symbols-outlined { font-size: 18px; flex-shrink: 0; }
+.discovered-item .dev-model {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--md-on-tertiary-container) 70%, transparent);
+  margin-left: auto;
+}
+.discovered.empty { font-style: italic; }
+
 details.advanced {
   margin-bottom: 20px;
   border: 1px solid var(--md-outline-variant);

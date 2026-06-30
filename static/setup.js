@@ -95,4 +95,30 @@ els.form.onsubmit = async (ev) => {
   }
 };
 
+async function discoverDevices() {
+  const el = document.getElementById("discovered");
+  if (!el) return;
+  try {
+    const data = await fetch("/api/setup/discover").then(r => r.json());
+    const devs = data.devices || [];
+    if (!devs.length) {
+      el.className = "discovered empty";
+      el.innerHTML = "Не найдено ни одного устройства. Проверь, что Chromecast включён и компьютер в той же Wi-Fi сети.";
+      return;
+    }
+    el.className = "discovered ok";
+    const iconMap = { cast: "cast", audio: "speaker", group: "speaker_group" };
+    el.innerHTML = devs.map(d => {
+      const iconName = iconMap[d.cast_type] || "cast";
+      const icon = `<span class="material-symbols-outlined">${iconName}</span>`;
+      const model = d.model ? ` <span class="dev-model">${d.model}</span>` : "";
+      return `<div class="discovered-item">${icon}<strong>${d.name}</strong>${model}</div>`;
+    }).join("");
+  } catch (e) {
+    el.className = "discovered empty";
+    el.textContent = "Не удалось проверить: " + e.message;
+  }
+}
+
 loadInfo();
+discoverDevices();

@@ -925,6 +925,45 @@ class SetupPayload(BaseModel):
     encoder: str = "h264_nvenc"
 
 
+@app.get("/api/setup/discover")
+async def api_setup_discover() -> dict:
+    """Быстрый discovery (3 сек) для отображения в setup-wizard."""
+    def _do() -> list[dict]:
+        import time as _time
+        import zeroconf as _zc
+        from pychromecast.discovery import CastBrowser, SimpleCastListener
+        zconf = _zc.Zeroconf()
+        browser = CastBrowser(
+            SimpleCastListener(
+                add_callback=lambda *_: None,
+                update_callback=lambda *_: None,
+                remove_callback=lambda *_: None,
+            ),
+            zconf,
+        )
+        browser.start_discovery()
+        _time.sleep(3.0)
+        found: list[dict] = []
+        for _uuid, info in browser.devices.items():
+            found.append({
+                "name": info.friendly_name,
+                "model": info.model_name,
+                "cast_type": info.cast_type,
+            })
+        try:
+            browser.stop_discovery()
+        except Exception:
+            pass
+        try:
+            zconf.close()
+        except Exception:
+            pass
+        return found
+
+    devices = await asyncio.to_thread(_do)
+    return {"devices": devices}
+
+
 @app.post("/api/setup/save")
 async def api_setup_save(req: SetupPayload) -> dict:
     media = Path(req.media_root)
