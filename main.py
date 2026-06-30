@@ -504,6 +504,57 @@ async def api_libraries_delete(lib_id: str) -> dict:
     return {"ok": True}
 
 
+# --- /api/help ---------------------------------------------------------------
+
+@app.get("/api/help/info")
+async def api_help_info() -> dict:
+    from logging_setup import LOG_FILE
+    cache_dir = PROJECT_ROOT / ".cache"
+    return {
+        "project_root": str(PROJECT_ROOT),
+        "cache_dir": str(cache_dir),
+        "log_file": str(LOG_FILE),
+        "host_ip": state.config.host_ip if state.config else None,
+        "port": state.config.port if state.config else 8000,
+    }
+
+
+def _open_with_explorer(target: Path, select: bool = False) -> None:
+    if sys.platform != "win32":
+        raise HTTPException(status_code=400, detail="Только Windows")
+    import ctypes
+    args = f'/select,"{target}"' if select else f'"{target}"'
+    ret = ctypes.windll.shell32.ShellExecuteW(
+        None, "open", "explorer.exe", args, None, 1,
+    )
+    if ret <= 32:
+        raise HTTPException(status_code=500, detail=f"ShellExecute вернул {ret}")
+
+
+@app.post("/api/help/open-folder")
+async def api_help_open_folder() -> dict:
+    _open_with_explorer(PROJECT_ROOT)
+    return {"ok": True}
+
+
+@app.post("/api/help/open-log")
+async def api_help_open_log() -> dict:
+    from logging_setup import LOG_FILE
+    if not LOG_FILE.exists():
+        raise HTTPException(status_code=404, detail="Лог-файл ещё не создан")
+    _open_with_explorer(LOG_FILE, select=True)
+    return {"ok": True}
+
+
+@app.post("/api/help/open-thumbs")
+async def api_help_open_thumbs() -> dict:
+    thumbs = PROJECT_ROOT / ".cache" / "thumbs"
+    if not thumbs.exists():
+        raise HTTPException(status_code=404, detail="Папка миниатюр ещё не создана")
+    _open_with_explorer(thumbs)
+    return {"ok": True}
+
+
 # --- /api/reveal -------------------------------------------------------------
 
 class RevealRequest(BaseModel):

@@ -985,6 +985,55 @@ async function loadVersion() {
 
 // --- boot -------------------------------------------------------------------
 
+// --- help / FAQ -------------------------------------------------------------
+
+async function openHelp() {
+  const modal = document.getElementById("help-modal");
+  if (!modal) return;
+  // Подтянем URL для пункта про телефон
+  try {
+    const info = await api("GET", "/api/help/info");
+    const url = `http://${info.host_ip}:${info.port}`;
+    document.getElementById("help-url").textContent = url;
+  } catch {}
+  if (typeof modal.showModal === "function") modal.showModal();
+  else modal.setAttribute("open", "");
+}
+
+(function initHelp() {
+  const modal = document.getElementById("help-modal");
+  if (!modal) return;
+  document.getElementById("help-btn").onclick = openHelp;
+  document.getElementById("help-close").onclick = () => modal.close();
+  modal.addEventListener("click", (ev) => {
+    const content = modal.querySelector(".modal-content");
+    if (content && !content.contains(ev.target)) modal.close();
+  });
+  // Делегируем action-кнопки
+  modal.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest("[data-help-action]");
+    if (!btn) return;
+    const action = btn.dataset.helpAction;
+    btn.disabled = true;
+    try {
+      if (action === "add-fw") {
+        await api("POST", "/api/firewall/add");
+        showDialog("Правила добавлены");
+      } else if (action === "open-log") {
+        await api("POST", "/api/help/open-log");
+      } else if (action === "open-folder") {
+        await api("POST", "/api/help/open-folder");
+      } else if (action === "open-thumbs") {
+        await api("POST", "/api/help/open-thumbs");
+      }
+    } catch (e) {
+      showDialog(e.message, "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+
 // --- firewall ---------------------------------------------------------------
 
 async function checkFirewall() {

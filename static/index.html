@@ -33,6 +33,9 @@
   <header>
     <h1>local-movie-cast <span id="app-version" class="app-version"></span></h1>
     <div id="devices" class="devices"></div>
+    <button id="help-btn" class="help-btn" title="Помощь">
+      <span class="material-symbols-outlined">help</span>
+    </button>
     <button id="theme-toggle" class="theme-toggle" title="Сменить тему">
       <span class="material-symbols-outlined"></span>
     </button>
@@ -106,6 +109,88 @@
       <div id="cast-controls" class="cast-controls"></div>
     </aside>
   </main>
+
+  <dialog id="help-modal" class="modal modal-wide">
+    <div class="modal-content help-content">
+      <div class="help-header">
+        <h3>Помощь</h3>
+        <button class="help-close" id="help-close" title="Закрыть">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <details class="help-item">
+        <summary>Почему я не вижу свой телевизор?</summary>
+        <div class="help-answer">
+          <p>Проверь по порядку:</p>
+          <ul>
+            <li>Chromecast и компьютер в одной Wi-Fi сети.</li>
+            <li>Chromecast включён (поставь его в Backdrop, должны меняться картинки).</li>
+            <li>Windows Firewall не блокирует приложение.</li>
+          </ul>
+          <button class="cast-btn-outlined cast-btn-compact" data-help-action="add-fw">Добавить правила файрвола</button>
+        </div>
+      </details>
+
+      <details class="help-item">
+        <summary>Что делать, если фильм не воспроизводится или чёрный экран?</summary>
+        <div class="help-answer">
+          <ul>
+            <li>Попробуй другую аудиодорожку в сайдбаре — некоторые форматы (DTS) Chromecast не понимает.</li>
+            <li>Для HEVC-видео нужен NVENC/QSV/AMF транскод. Проверь настройку в config.yaml.</li>
+            <li>Открой лог — там видно, что упало.</li>
+          </ul>
+          <button class="cast-btn-outlined cast-btn-compact" data-help-action="open-log">Открыть лог</button>
+        </div>
+      </details>
+
+      <details class="help-item">
+        <summary>Где хранятся настройки и кэш?</summary>
+        <div class="help-answer">
+          <p>Рядом с приложением:</p>
+          <ul>
+            <li><code>config.yaml</code> — основные настройки</li>
+            <li><code>.cache/</code> — миниатюры, недавно открытое, позиции</li>
+          </ul>
+          <button class="cast-btn-outlined cast-btn-compact" data-help-action="open-folder">Открыть папку</button>
+        </div>
+      </details>
+
+      <details class="help-item">
+        <summary>Где хранится лог?</summary>
+        <div class="help-answer">
+          <p>В <code>.cache/logs/app.log</code> рядом с приложением. 5 файлов по 5 МБ с ротацией.</p>
+          <button class="cast-btn-outlined cast-btn-compact" data-help-action="open-log">Открыть лог</button>
+        </div>
+      </details>
+
+      <details class="help-item">
+        <summary>Как удалить миниатюры, чтобы пересоздать?</summary>
+        <div class="help-answer">
+          <p>Сотри содержимое папки <code>.cache/thumbs/</code>. При следующем открытии папки они сгенерируются заново.</p>
+          <button class="cast-btn-outlined cast-btn-compact" data-help-action="open-thumbs">Открыть папку миниатюр</button>
+        </div>
+      </details>
+
+      <details class="help-item">
+        <summary>Можно ли открывать с телефона или планшета?</summary>
+        <div class="help-answer">
+          <p>Да, в той же Wi-Fi сети по адресу:</p>
+          <p class="help-url" id="help-url">—</p>
+          <p>На телефоне в Chrome можно «Добавить на главный экран» — иконка появится как у обычного приложения.</p>
+        </div>
+      </details>
+
+      <details class="help-item">
+        <summary>Что делать, если приложение зависло?</summary>
+        <div class="help-answer">
+          <p>Правый клик на иконке в трее → «Выход». Если не помогает — <code>taskkill /F /IM local-movie-cast.exe</code> в cmd.</p>
+          <p>Перед закрытием посмотри в лог — там может быть видно, что пошло не так.</p>
+          <button class="cast-btn-outlined cast-btn-compact" data-help-action="open-log">Открыть лог</button>
+        </div>
+      </details>
+    </div>
+  </dialog>
 
   <dialog id="confirm-modal" class="modal">
     <div class="modal-content">
